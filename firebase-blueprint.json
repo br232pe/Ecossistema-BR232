@@ -1,0 +1,161 @@
+{
+  "entities": {
+    "Ad": {
+      "title": "Anúncio",
+      "description": "Anúncio nos classificados da BR-232",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "city": { "type": "string" },
+        "price": { "type": "string" },
+        "phone": { "type": "string" },
+        "img": { "type": "string" },
+        "isPremium": { "type": "boolean" },
+        "isVerified": { "type": "boolean" },
+        "createdAt": { "type": "number" },
+        "rating": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["title", "category", "city", "userId"]
+    },
+    "Alert": {
+      "title": "Alerta",
+      "description": "Alerta de trânsito ou segurança na rodovia",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "km": { "type": "number" },
+        "location": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["type", "km", "userId"]
+    },
+    "User": {
+      "title": "Usuário",
+      "description": "Perfil do usuário no ecossistema",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "merchant", "admin"] },
+        "referralCode": { "type": "string" },
+        "totalReferrals": { "type": "number" }
+      },
+      "required": ["email", "role"]
+    },
+    "MnemeList": {
+      "title": "Lista Mneme",
+      "description": "Lista de compras ou gestão doméstica",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "userId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "archived"] },
+        "totalEstimated": { "type": "number" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "category": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unit": { "type": "string" },
+              "checked": { "type": "boolean" },
+              "estimatedPrice": { "type": "number" },
+              "lastPricePaid": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["title", "createdAt", "userId", "status"]
+    },
+    "LoyaltyCampaign": {
+      "title": "Campanha de Fidelidade",
+      "description": "Campanha criada por um lojista",
+      "type": "object",
+      "properties": {
+        "merchantName": { "type": "string" },
+        "tier": { "type": "string" },
+        "title": { "type": "string" },
+        "goal": { "type": "number" },
+        "reward": { "type": "string" },
+        "rules": { "type": "string" },
+        "color": { "type": "string" },
+        "activeUsers": { "type": "number" }
+      },
+      "required": ["merchantName", "title", "goal", "reward"]
+    },
+    "LoyaltyCard": {
+      "title": "Cartão de Fidelidade",
+      "description": "Cartão de um usuário em uma campanha",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "campaignId": { "type": "string" },
+        "merchantName": { "type": "string" },
+        "title": { "type": "string" },
+        "currentStamps": { "type": "number" },
+        "goal": { "type": "number" },
+        "reward": { "type": "string" },
+        "color": { "type": "string" },
+        "lastStampDate": { "type": "number" },
+        "isCompleted": { "type": "boolean" },
+        "voucherCode": { "type": "string" }
+      },
+      "required": ["userId", "campaignId", "currentStamps", "goal"]
+    },
+    "Patron": {
+      "title": "Patrono",
+      "description": "Estabelecimento patrocinador do ecossistema",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "tier": { "type": "string", "enum": ["Bronze", "Prata", "Ouro", "Titan", "Factor", "Twister", "Alta Cilindrada"] },
+        "city": { "type": "string" },
+        "km": { "type": "number" },
+        "coordinates": { "type": "object", "properties": { "lat": { "type": "number" }, "lng": { "type": "number" } } },
+        "coverImage": { "type": "string" },
+        "cta": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "isSponsor": { "type": "boolean" }
+      },
+      "required": ["name", "tier", "city", "coordinates"]
+    }
+  },
+  "firestore": {
+    "ads": {
+      "schema": "Ad",
+      "description": "Coleção global de anúncios"
+    },
+    "alerts": {
+      "schema": "Alert",
+      "description": "Coleção global de alertas em tempo real"
+    },
+    "users": {
+      "schema": "User",
+      "description": "Perfis de usuários"
+    },
+    "mneme_lists": {
+      "schema": "MnemeList",
+      "description": "Listas de compras dos usuários"
+    },
+    "loyalty_campaigns": {
+      "schema": "LoyaltyCampaign",
+      "description": "Campanhas de fidelidade ativas"
+    },
+    "loyalty_cards": {
+      "schema": "LoyaltyCard",
+      "description": "Cartões de fidelidade dos usuários"
+    },
+    "patrons": {
+      "schema": "Patron",
+      "description": "Coleção de patronos e patrocinadores da malha"
+    }
+  }
+}

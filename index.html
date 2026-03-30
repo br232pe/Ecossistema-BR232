@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html class="dark" lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Ecossistema BR232</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+      // POLYFILL DE SEGURANÇA: Garante que 'process.env' exista para evitar crashs
+      window.process = window.process || { env: {} };
+      
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#00e676",
+              "primary-dark": "#00c853",
+              "secondary": "#ffab00",
+              "background-dark": "#050d09",
+              "surface-dark": "#0c1a14",
+              "surface-light": "#12261d",
+              "border-dark": "#ffffff10"
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      :root {
+        --sat: env(safe-area-inset-top);
+        --sab: env(safe-area-inset-bottom);
+      }
+      body { 
+        font-family: 'Inter', sans-serif;
+        background-color: #050d09;
+        color: white;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: none;
+      }
+      .safe-pb { padding-bottom: calc(2rem + var(--sab)); }
+      /* Estilo para o Repórter de Erros Nativo */
+      #crash-report { display: none; padding: 20px; color: #ff5555; background: #110000; height: 100vh; font-family: monospace; }
+    </style>
+  </head>
+  <body class="antialiased overflow-x-hidden select-none">
+    <div id="crash-report"></div>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
