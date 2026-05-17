@@ -26,6 +26,7 @@ const Profile = React.lazy(() => import('./pages/Profile'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const Terms = React.lazy(() => import('./pages/Terms'));
 const Manifesto = React.lazy(() => import('./pages/Manifesto'));
+const PolicyCenter = React.lazy(() => import('./pages/PolicyCenter'));
 // Módulos de Fidelidade
 const LoyaltyWallet = React.lazy(() => import('./pages/LoyaltyWallet'));
 const LoyaltyManager = React.lazy(() => import('./pages/LoyaltyManager'));
@@ -38,6 +39,15 @@ const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const isAuthenticated = !!user;
 
+  useEffect(() => {
+    // Corretor de URL para HashRouter em produção
+    const hash = window.location.hash;
+    if (hash && !hash.startsWith('#/')) {
+      const newHash = '#/' + hash.substring(1);
+      window.location.hash = newHash;
+    }
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#050d09] flex flex-col items-center justify-center text-primary">
@@ -46,16 +56,6 @@ const AppContent: React.FC = () => {
       </div>
     );
   }
-
-  useEffect(() => {
-    // Corretor de URL para HashRouter em produção
-    // Se a URL vier como /#dashboard (sem a barra após o #), nós corrigimos para #/dashboard
-    const hash = window.location.hash;
-    if (hash && !hash.startsWith('#/')) {
-      const newHash = '#/' + hash.substring(1);
-      window.location.hash = newHash;
-    }
-  }, []);
 
   return (
     <Router>
@@ -68,6 +68,9 @@ const AppContent: React.FC = () => {
               <Route path="/" element={<Welcome />} />
               <Route path="/login" element={<ErrorBoundary moduleName="Autenticação"><Login /></ErrorBoundary>} />
               <Route path="/termos" element={<Terms />} />
+              <Route path="/politica-de-privacidade" element={<PolicyCenter />} />
+              <Route path="/termos-e-uso" element={<PolicyCenter />} />
+              <Route path="/central-de-politicas" element={<PolicyCenter />} />
               <Route path="/manifesto" element={<Manifesto />} />
               
               {/* Módulos Core */}
@@ -154,13 +157,14 @@ const Layout: React.FC<{ children: React.ReactNode, auth: boolean }> = ({ childr
 const BottomNav: React.FC<{ auth: boolean }> = ({ auth }) => {
   const location = useLocation();
   
-  // CORREÇÃO CRÍTICA: A verificação anterior ocultava o menu em TODAS as páginas
-  // pois location.pathname sempre começa com '/'
   const hiddenPrefixes = [
     '/reportar', 
     '/anunciar', 
     '/login', 
     '/termos', 
+    '/politica-de-privacidade',
+    '/termos-e-uso',
+    '/central-de-politicas',
     '/manifesto', 
     '/fidelidade/gerir', 
     '/mneme/lista', 

@@ -136,18 +136,96 @@ export interface MnemeList {
 
 export interface UserProfile {
   uid: string;
-  displayName: string | null;
+  name: string;
+  displayName?: string; // Alias for UI
+  userType: 'user' | 'admin' | 'merchant' | 'moderador';
   email: string | null;
   photoURL: string | null;
-  role: 'user' | 'admin' | 'merchant';
-  mnemeTier: MnemeTier;
-  loyaltyTier: LoyaltyTier;
-  associationTier?: AssociationTier;
   createdAt: number;
-  lastLogin: number;
+  lastLogin?: number;
+  mnemeTier?: MnemeTier;
+  loyaltyTier?: LoyaltyTier;
+  associationTier?: AssociationTier;
   region?: string;
   bio?: string;
   phone?: string;
+}
+
+export interface StoredAlert {
+  id?: string;
+  alertType: string;
+  type?: 'incident' | 'hazard' | 'police' | 'weather'; // Alias for alertType
+  geolocation: { lat: number; lng: number };
+  locationKm: string;
+  km?: number; // Alias for UI
+  location?: string; // Alias for UI
+  severity?: 'low' | 'medium' | 'high';
+  status: string;
+  timestamp: number;
+  userId: string;
+}
+
+export interface StoredArticle {
+  id?: string;
+  authorId: string;
+  category: string;
+  content: string;
+  coverImageUrl: string;
+  publishedAt: number;
+  status: string;
+  title: string;
+}
+
+export interface StoredClassified {
+  id?: string;
+  category: string;
+  city: string;
+  contact_whatsapp: string;
+  phone?: string; // Alias for contact_whatsapp
+  locationMap: { lat: number; lng: number };
+  ratingAvg: number;
+  rating?: number; // Alias for ratingAvg
+  serviceUnitType: string;
+  status: string;
+  timestamp: number;
+  title: string;
+  userId: string;
+  img?: string;
+  price?: string;
+  isPremium?: boolean;
+  isVerified?: boolean;
+}
+
+export interface ConfigPlan {
+  id?: string;
+  base_price: number;
+  bracket_1_price: number;
+  bracket_2_price: number;
+  bracket_3_price: number;
+  cycle: string;
+  description: string;
+  is_simulated: boolean;
+  memberLimit: number;
+  name: string;
+}
+
+export interface StoredPatron {
+  id?: string;
+  name: string;
+  type: 'PF' | 'PJ';
+  status: string;
+  level: string;
+  tier?: string; // Alias for level
+  mediaUrl: string;
+  coverImage?: string; // Alias for mediaUrl
+  profileText: string;
+  description?: string; // Alias for profileText
+  externalLink: string;
+  expirationDate: number;
+  userId: string;
+  coordinates?: { lat: number; lng: number };
+  city?: string;
+  km?: number;
 }
 
 export interface ProductMock {

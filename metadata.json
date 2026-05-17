@@ -1,7 +1,11 @@
 {
-  "name": "Ecossistema BR232",
-  "description": "Plataforma colaborativa para moradores, motoristas e empresários do eixo Luiz Gonzaga em Pernambuco.",
+  "name": "Ecossistema BR-232",
+  "description": "Meta-portal de serviços, classificados e anúncios comerciais na região da rodovia BR-232 em Pernambuco.",
   "requestFramePermissions": [
-    "geolocation"
+    "geolocation",
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }

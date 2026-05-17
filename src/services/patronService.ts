@@ -1,21 +1,6 @@
-import { collection, getDocs, query, where, limit } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-
-export interface Patron {
-  id?: string;
-  name: string;
-  tier: string;
-  city: string;
-  km?: number;
-  coordinates: {
-    lat: number;
-    lng: number;
-  };
-  coverImage: string;
-  cta?: string;
-  isActive: boolean;
-  isSponsor: boolean;
-}
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db as firestore } from '../../services/firebase';
+import { StoredPatron } from '../../types';
 
 // Haversine formula to calculate distance between two points in km
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -36,24 +21,26 @@ function deg2rad(deg: number): number {
 }
 
 export const patronService = {
-  async getNearestPatron(userLat: number, userLng: number): Promise<Patron | null> {
+  async getNearestPatron(userLat: number, userLng: number): Promise<StoredPatron | null> {
     try {
-      const patronsRef = collection(db, 'patrons');
-      const q = query(patronsRef, where('isActive', '==', true));
+      const patronsRef = collection(firestore, 'patrons');
+      const q = query(patronsRef, where('status', '==', 'ativo'));
       const querySnapshot = await getDocs(q);
       
-      let nearest: Patron | null = null;
+      let nearest: StoredPatron | null = null;
       let minDistance = Infinity;
 
       querySnapshot.forEach((doc) => {
-        const data = doc.data() as Patron;
-        const dist = getDistance(userLat, userLng, data.coordinates.lat, data.coordinates.lng);
-        
-        // Priority logic: Tier weight + Distance
-        // For now, just distance, but we can add tier priority later
-        if (dist < minDistance) {
-          minDistance = dist;
-          nearest = { ...data, id: doc.id };
+        const data = doc.data() as StoredPatron;
+        // Nota: Se o BD real usar GeoPoint, precisamos ajustar aqui.
+        // Assumindo que data.coordinates existe conforme o tipo StoredPatron
+        if (data.coordinates) {
+          const dist = getDistance(userLat, userLng, data.coordinates.lat, data.coordinates.lng);
+          
+          if (dist < minDistance) {
+            minDistance = dist;
+            nearest = { ...data, id: doc.id };
+          }
         }
       });
 

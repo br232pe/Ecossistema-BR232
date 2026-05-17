@@ -11,57 +11,39 @@ import {
   setDoc, 
   getDoc,
   where,
-  getDocFromServer
+  getDocFromServer,
+  increment,
+  updateDoc
 } from 'firebase/firestore';
 import { db as firestore, auth } from './firebase';
-import { LoyaltyCampaign, LoyaltyCard, LoyaltyTier, MnemeList, MnemeItem, ProductMock } from '../types';
+import { 
+  LoyaltyCampaign, 
+  LoyaltyCard, 
+  LoyaltyTier, 
+  MnemeList, 
+  MnemeItem, 
+  ProductMock,
+  StoredAlert,
+  StoredArticle,
+  StoredClassified,
+  ConfigPlan,
+  StoredPatron,
+  UserProfile
+} from '../types';
 import { handleFirestoreError, OperationType } from './errorHandlers';
 
-// Interfaces de Dados Armazenados
-export interface StoredAd {
-  id: string;
-  title: string;
-  category: string;
-  city: string;
-  price?: string;
-  phone?: string;
-  img: string;
-  isPremium: boolean;
-  isVerified: boolean;
-  createdAt: number;
-  rating: number;
-  userId: string;
-}
-
-export interface StoredAlert {
-  id: string;
-  type: string;
-  km: number;
-  location: string;
-  timestamp: number;
-  userId: string;
-  severity?: 'low' | 'medium' | 'high';
-}
-
-export interface ReferralStats {
-  referralCode: string;
-  totalReferrals: number;
-  pendingCredits: number;
-  adCredits: number;
-  commissionRate: number;
-  campaignStart: number;
-  campaignDurationDays: number;
-  benefitExpiryMonths: number;
-}
+// Interfaces de Dados Armazenados (Removidas daqui pois já estão em types.ts)
 
 const COLLECTIONS = {
-  ADS: 'ads',
+  CLASSIFIEDS: 'classifieds',
   ALERTS: 'alerts',
+  ARTICLES: 'articles',
   USERS: 'users',
+  CONFIG_PLANS: 'config_plans',
+  PATRONS: 'patrons',
   LOYALTY_CAMPAIGNS: 'loyalty_campaigns',
-  LOYALTY_WALLET: 'loyalty_wallet',
-  MNEME_LISTS: 'mneme_lists',
-  LOYALTY_CARDS: 'loyalty_cards'
+  LOYALTY_CARDS: 'loyalty_cards',
+  MNEME_LISTS: 'mneme_lists'
 };
 
 // Banco de Produtos Offline (Mock para o Scanner)
@@ -76,40 +58,43 @@ const OFFLINE_PRODUCTS_DB: ProductMock[] = [
 
 // Implementação Atual: FIRESTORE (Multiplayer)
 export const db = {
-  ads: {
-    async getAll(): Promise<StoredAd[]> {
+  classifieds: {
+    async getAll(): Promise<StoredClassified[]> {
       try {
-        const q = query(collection(firestore, COLLECTIONS.ADS), orderBy('createdAt', 'desc'));
+        const q = query(collection(firestore, COLLECTIONS.CLASSIFIEDS), orderBy('timestamp', 'desc'));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoredAd));
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoredClassified));
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, COLLECTIONS.ADS);
+        handleFirestoreError(error, OperationType.GET, COLLECTIONS.CLASSIFIEDS);
         return [];
       }
     },
-    async save(ad: Omit<StoredAd, 'id' | 'createdAt' | 'rating' | 'isVerified'>): Promise<StoredAd> {
+    async save(ad: Omit<StoredClassified, 'id' | 'timestamp' | 'ratingAvg' | 'status'>): Promise<StoredClassified> {
       try {
         const newAd = {
           ...ad,
-          createdAt: Date.now(),
-          rating: 5.0,
-          isVerified: false
+          timestamp: Date.now(),
+          ratingAvg: 5.0,
+          status: 'ativo'
         };
-        const docRef = await addDoc(collection(firestore, COLLECTIONS.ADS), newAd);
-        return { id: docRef.id, ...newAd } as StoredAd;
+        const docRef = await addDoc(collection(firestore, COLLECTIONS.CLASSIFIEDS), newAd);
+        return { id: docRef.id, ...newAd } as StoredClassified;
       } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, COLLECTIONS.ADS);
+        handleFirestoreError(error, OperationType.WRITE, COLLECTIONS.CLASSIFIEDS);
         throw error;
       }
     },
     async delete(id: string): Promise<void> {
       try {
-        await deleteDoc(doc(firestore, COLLECTIONS.ADS, id));
+        await deleteDoc(doc(firestore, COLLECTIONS.CLASSIFIEDS, id));
       } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `${COLLECTIONS.ADS}/${id}`);
+        handleFirestoreError(error, OperationType.DELETE, `${COLLECTIONS.CLASSIFIEDS}/${id}`);
       }
     }
   },
+  // Alias para compatibilidade com código antigo
+  get ads() { return this.classifieds; },
+
   alerts: {
     async getAll(): Promise<StoredAlert[]> {
       try {
@@ -121,11 +106,12 @@ export const db = {
         return [];
       }
     },
-    async save(alert: Omit<StoredAlert, 'id' | 'timestamp'>): Promise<StoredAlert> {
+    async save(alert: Omit<StoredAlert, 'id' | 'timestamp' | 'status'>): Promise<StoredAlert> {
       try {
         const newAlert = {
           ...alert,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          status: 'ativo'
         };
         const docRef = await addDoc(collection(firestore, COLLECTIONS.ALERTS), newAlert);
         return { id: docRef.id, ...newAlert } as StoredAlert;
@@ -145,6 +131,42 @@ export const db = {
       });
     }
   },
+  articles: {
+    async getAll(): Promise<StoredArticle[]> {
+      try {
+        const q = query(collection(firestore, COLLECTIONS.ARTICLES), orderBy('publishedAt', 'desc'));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoredArticle));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.GET, COLLECTIONS.ARTICLES);
+        return [];
+      }
+    }
+  },
+  config: {
+    async getPlans(): Promise<ConfigPlan[]> {
+      try {
+        const q = query(collection(firestore, COLLECTIONS.CONFIG_PLANS));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ConfigPlan));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.GET, COLLECTIONS.CONFIG_PLANS);
+        return [];
+      }
+    }
+  },
+  patrons: {
+    async getAll(): Promise<StoredPatron[]> {
+      try {
+        const q = query(collection(firestore, COLLECTIONS.PATRONS));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoredPatron));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.GET, COLLECTIONS.PATRONS);
+        return [];
+      }
+    }
+  },
   loyalty: {
     async getMyCampaigns(): Promise<LoyaltyCampaign[]> {
       try {
@@ -154,16 +176,6 @@ export const db = {
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, COLLECTIONS.LOYALTY_CAMPAIGNS);
         return [];
-      }
-    },
-    async createCampaign(camp: Omit<LoyaltyCampaign, 'id' | 'activeUsers'>): Promise<LoyaltyCampaign> {
-      try {
-        const newCamp = { ...camp, activeUsers: 0 };
-        const docRef = await addDoc(collection(firestore, COLLECTIONS.LOYALTY_CAMPAIGNS), newCamp);
-        return { id: docRef.id, ...newCamp } as LoyaltyCampaign;
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, COLLECTIONS.LOYALTY_CAMPAIGNS);
-        throw error;
       }
     },
     async getWallet(): Promise<LoyaltyCard[]> {
@@ -180,22 +192,30 @@ export const db = {
     },
     async addStamp(cardId: string): Promise<void> {
       try {
-        const cardRef = doc(firestore, COLLECTIONS.LOYALTY_CARDS, cardId);
-        const cardSnap = await getDoc(cardRef);
-        if (cardSnap.exists()) {
-          const data = cardSnap.data();
-          const newStamps = (data.currentStamps || 0) + 1;
-          const isCompleted = newStamps >= data.goal;
-          await setDoc(cardRef, {
-            ...data,
-            currentStamps: newStamps,
-            isCompleted,
-            voucherCode: isCompleted ? `VCH-${Math.random().toString(36).substr(2, 6).toUpperCase()}` : data.voucherCode,
-            lastStampDate: Date.now()
-          }, { merge: true });
+        const docRef = doc(firestore, COLLECTIONS.LOYALTY_CARDS, cardId);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const data = snap.data() as LoyaltyCard;
+          await updateDoc(docRef, {
+            currentStamps: increment(1),
+            lastStampDate: Date.now(),
+            isCompleted: (data.currentStamps + 1) >= data.goal
+          });
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, `${COLLECTIONS.LOYALTY_CARDS}/${cardId}`);
+      }
+    },
+    async createCampaign(data: Omit<LoyaltyCampaign, 'id' | 'activeUsers'>): Promise<void> {
+      try {
+        await addDoc(collection(firestore, COLLECTIONS.LOYALTY_CAMPAIGNS), {
+          ...data,
+          merchantId: auth.currentUser?.uid,
+          activeUsers: 0,
+          createdAt: Date.now()
+        });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, COLLECTIONS.LOYALTY_CAMPAIGNS);
       }
     }
   },
@@ -212,30 +232,19 @@ export const db = {
         return [];
       }
     },
-    async createList(title: string, items: MnemeItem[] = []): Promise<MnemeList> {
+    async createList(title: string, items: any[]): Promise<{ id: string }> {
       try {
-        const userId = auth.currentUser?.uid;
-        const newList = {
+        const docRef = await addDoc(collection(firestore, COLLECTIONS.MNEME_LISTS), {
           title,
-          userId,
-          createdAt: Date.now(),
-          status: 'active',
           items,
-          totalEstimated: items.reduce((acc, i) => acc + (i.estimatedPrice || 0), 0)
-        };
-        const docRef = await addDoc(collection(firestore, COLLECTIONS.MNEME_LISTS), newList);
-        return { id: docRef.id, ...newList } as MnemeList;
+          userId: auth.currentUser?.uid,
+          createdAt: Date.now(),
+          status: 'active'
+        });
+        return { id: docRef.id };
       } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, COLLECTIONS.MNEME_LISTS);
         throw error;
-      }
-    },
-    async updateList(list: MnemeList): Promise<void> {
-      try {
-        const { id, ...data } = list;
-        await setDoc(doc(firestore, COLLECTIONS.MNEME_LISTS, id), data, { merge: true });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, `${COLLECTIONS.MNEME_LISTS}/${list.id}`);
       }
     },
     async deleteList(id: string): Promise<void> {
@@ -245,32 +254,39 @@ export const db = {
         handleFirestoreError(error, OperationType.DELETE, `${COLLECTIONS.MNEME_LISTS}/${id}`);
       }
     },
+    async updateList(id: string, data: Partial<MnemeList>): Promise<void> {
+      try {
+        await updateDoc(doc(firestore, COLLECTIONS.MNEME_LISTS, id), data);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `${COLLECTIONS.MNEME_LISTS}/${id}`);
+      }
+    },
     async getProductByBarcode(ean: string): Promise<ProductMock | undefined> {
       return OFFLINE_PRODUCTS_DB.find(p => p.ean === ean);
     }
   },
   users: {
-    async getAll() {
+    async getAll(): Promise<UserProfile[]> {
       try {
         const q = query(collection(firestore, COLLECTIONS.USERS));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, COLLECTIONS.USERS);
         return [];
       }
     },
-    async getProfile(userId: string) {
+    async getProfile(userId: string): Promise<UserProfile | null> {
       try {
         const docRef = doc(firestore, COLLECTIONS.USERS, userId);
         const snap = await getDoc(docRef);
-        return snap.exists() ? snap.data() : null;
+        return snap.exists() ? snap.data() as UserProfile : null;
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, `${COLLECTIONS.USERS}/${userId}`);
         return null;
       }
     },
-    async updateProfile(userId: string, data: any) {
+    async updateProfile(userId: string, data: Partial<UserProfile>) {
       try {
         await setDoc(doc(firestore, COLLECTIONS.USERS, userId), data, { merge: true });
       } catch (error) {

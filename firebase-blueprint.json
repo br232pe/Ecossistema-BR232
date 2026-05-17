@@ -1,50 +1,85 @@
 {
   "entities": {
-    "Ad": {
-      "title": "Anúncio",
-      "description": "Anúncio nos classificados da BR-232",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "category": { "type": "string" },
-        "city": { "type": "string" },
-        "price": { "type": "string" },
-        "phone": { "type": "string" },
-        "img": { "type": "string" },
-        "isPremium": { "type": "boolean" },
-        "isVerified": { "type": "boolean" },
-        "createdAt": { "type": "number" },
-        "rating": { "type": "number" },
-        "userId": { "type": "string" }
-      },
-      "required": ["title", "category", "city", "userId"]
-    },
     "Alert": {
       "title": "Alerta",
       "description": "Alerta de trânsito ou segurança na rodovia",
       "type": "object",
       "properties": {
-        "type": { "type": "string" },
-        "km": { "type": "number" },
-        "location": { "type": "string" },
+        "alertType": { "type": "string" },
+        "geolocation": { "type": "object", "properties": { "lat": { "type": "number" }, "lng": { "type": "number" } } },
+        "locationKm": { "type": "string" },
+        "status": { "type": "string" },
         "timestamp": { "type": "number" },
         "userId": { "type": "string" }
       },
-      "required": ["type", "km", "userId"]
+      "required": ["alertType", "locationKm", "status", "userId"]
     },
-    "User": {
-      "title": "Usuário",
-      "description": "Perfil do usuário no ecossistema",
+    "Article": {
+      "title": "Artigo",
+      "description": "Conteúdo editorial ou notícia",
       "type": "object",
       "properties": {
-        "displayName": { "type": "string" },
-        "email": { "type": "string" },
-        "photoURL": { "type": "string" },
-        "role": { "type": "string", "enum": ["user", "merchant", "admin"] },
-        "referralCode": { "type": "string" },
-        "totalReferrals": { "type": "number" }
+        "authorId": { "type": "string" },
+        "category": { "type": "string" },
+        "content": { "type": "string" },
+        "coverImageUrl": { "type": "string" },
+        "publishedAt": { "type": "number" },
+        "status": { "type": "string" },
+        "title": { "type": "string" }
       },
-      "required": ["email", "role"]
+      "required": ["authorId", "title", "content", "status"]
+    },
+    "Classified": {
+      "title": "Classificado",
+      "description": "Anúncio de serviço ou produto",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "city": { "type": "string" },
+        "contact_whatsapp": { "type": "string" },
+        "locationMap": { "type": "object", "properties": { "lat": { "type": "number" }, "lng": { "type": "number" } } },
+        "ratingAvg": { "type": "number" },
+        "serviceUnitType": { "type": "string" },
+        "status": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "title": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["category", "city", "title", "userId", "status"]
+    },
+    "ConfigPlan": {
+      "title": "Plano de Configuração",
+      "description": "Configurações de precificação e limites para associações",
+      "type": "object",
+      "properties": {
+        "base_price": { "type": "number" },
+        "bracket_1_price": { "type": "number" },
+        "bracket_2_price": { "type": "number" },
+        "bracket_3_price": { "type": "number" },
+        "cycle": { "type": "string" },
+        "description": { "type": "string" },
+        "is_simulated": { "type": "boolean" },
+        "memberLimit": { "type": "number" },
+        "name": { "type": "string" }
+      },
+      "required": ["name", "base_price", "memberLimit"]
+    },
+    "Patron": {
+      "title": "Patrono",
+      "description": "Estabelecimento patrocinador do ecossistema",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["PF", "PJ"] },
+        "status": { "type": "string" },
+        "level": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "profileText": { "type": "string" },
+        "externalLink": { "type": "string" },
+        "expirationDate": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["name", "type", "status", "level"]
     },
     "MnemeList": {
       "title": "Lista Mneme",
@@ -55,10 +90,9 @@
         "createdAt": { "type": "number" },
         "userId": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "archived"] },
-        "totalEstimated": { "type": "number" },
-        "items": {
-          "type": "array",
-          "items": {
+        "items": { 
+          "type": "array", 
+          "items": { 
             "type": "object",
             "properties": {
               "id": { "type": "string" },
@@ -67,29 +101,29 @@
               "quantity": { "type": "number" },
               "unit": { "type": "string" },
               "checked": { "type": "boolean" },
-              "estimatedPrice": { "type": "number" },
-              "lastPricePaid": { "type": "number" }
+              "estimatedPrice": { "type": "number" }
             }
           }
         }
       },
-      "required": ["title", "createdAt", "userId", "status"]
+      "required": ["title", "userId", "status", "items"]
     },
     "LoyaltyCampaign": {
       "title": "Campanha de Fidelidade",
-      "description": "Campanha criada por um lojista",
+      "description": "Campanha criada por um comerciante",
       "type": "object",
       "properties": {
         "merchantName": { "type": "string" },
-        "tier": { "type": "string" },
+        "merchantId": { "type": "string" },
         "title": { "type": "string" },
         "goal": { "type": "number" },
         "reward": { "type": "string" },
         "rules": { "type": "string" },
         "color": { "type": "string" },
-        "activeUsers": { "type": "number" }
+        "activeUsers": { "type": "number" },
+        "createdAt": { "type": "number" }
       },
-      "required": ["merchantName", "title", "goal", "reward"]
+      "required": ["merchantName", "merchantId", "title", "goal"]
     },
     "LoyaltyCard": {
       "title": "Cartão de Fidelidade",
@@ -105,57 +139,60 @@
         "reward": { "type": "string" },
         "color": { "type": "string" },
         "lastStampDate": { "type": "number" },
-        "isCompleted": { "type": "boolean" },
-        "voucherCode": { "type": "string" }
+        "isCompleted": { "type": "boolean" }
       },
       "required": ["userId", "campaignId", "currentStamps", "goal"]
     },
-    "Patron": {
-      "title": "Patrono",
-      "description": "Estabelecimento patrocinador do ecossistema",
+    "User": {
+      "title": "Usuário",
+      "description": "Perfil do usuário no ecossistema",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "tier": { "type": "string", "enum": ["Bronze", "Prata", "Ouro", "Titan", "Factor", "Twister", "Alta Cilindrada"] },
-        "city": { "type": "string" },
-        "km": { "type": "number" },
-        "coordinates": { "type": "object", "properties": { "lat": { "type": "number" }, "lng": { "type": "number" } } },
-        "coverImage": { "type": "string" },
-        "cta": { "type": "string" },
-        "isActive": { "type": "boolean" },
-        "isSponsor": { "type": "boolean" }
+        "userType": { "type": "string", "enum": ["user", "merchant", "admin", "moderador"] },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "number" }
       },
-      "required": ["name", "tier", "city", "coordinates"]
+      "required": ["name", "userType"]
     }
   },
   "firestore": {
-    "ads": {
-      "schema": "Ad",
-      "description": "Coleção global de anúncios"
-    },
     "alerts": {
       "schema": "Alert",
-      "description": "Coleção global de alertas em tempo real"
+      "description": "Alertas de trânsito"
+    },
+    "articles": {
+      "schema": "Article",
+      "description": "Artigos e notícias"
+    },
+    "classifieds": {
+      "schema": "Classified",
+      "description": "Classificados e serviços"
+    },
+    "config_plans": {
+      "schema": "ConfigPlan",
+      "description": "Planos e precificação"
+    },
+    "patrons": {
+      "schema": "Patron",
+      "description": "Patronos e mantenedores"
     },
     "users": {
       "schema": "User",
       "description": "Perfis de usuários"
     },
-    "mneme_lists": {
-      "schema": "MnemeList",
-      "description": "Listas de compras dos usuários"
-    },
     "loyalty_campaigns": {
       "schema": "LoyaltyCampaign",
-      "description": "Campanhas de fidelidade ativas"
+      "description": "Campanhas de fidelidade"
     },
     "loyalty_cards": {
       "schema": "LoyaltyCard",
       "description": "Cartões de fidelidade dos usuários"
     },
-    "patrons": {
-      "schema": "Patron",
-      "description": "Coleção de patronos e patrocinadores da malha"
+    "mneme_lists": {
+      "schema": "MnemeList",
+      "description": "Listas de compras Mneme"
     }
   }
 }

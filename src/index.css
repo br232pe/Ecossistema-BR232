@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background-dark: #05100a;
+    --primary: #00E676;
+    --primary-dark: #00c853;
+    --surface-dark: #0c1a14;
+  }
+  
+  html {
+    font-family: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--background-dark);
+    color: white;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+.bg-background-dark { background-color: var(--background-dark); }
+.text-primary { color: var(--primary); }
+.bg-primary { background-color: var(--primary); }
+.bg-surface-dark { background-color: var(--surface-dark); }
