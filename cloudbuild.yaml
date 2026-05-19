@@ -1,0 +1,15 @@
+steps:
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud run deploy ecossistema-br232 \
+          --source . \
+          --region us-west1 \
+          --platform managed \
+          --allow-unauthenticated \
+          --quiet
+
+options:
+  logging: CLOUD_LOGGING_ONLY
