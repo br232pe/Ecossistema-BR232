@@ -46,14 +46,35 @@ export const POLICIES: Policy[] = [
     id: 'politica-privacidade',
     title: '2. Política de Privacidade ECOBR232',
     content: `
-      <h2>Privacidade e Proteção de Dados</h2>
-      <p>O Ecossistema BR-232 respeita sua privacidade. Esta política descreve como coletamos e usamos seus dados ao utilizar a autenticação via Google.</p>
-      <h3>Dados Coletados</h3>
-      <p>Ao realizar login via Google Auth, recebemos apenas os dados básicos autorizados por você: Nome, E-mail e Foto de Perfil. Esses dados são utilizados exclusivamente para identificar suas publicações e garantir a segurança da plataforma.</p>
-      <h3>Uso de Cookies</h3>
-      <p>Utilizamos cookies essenciais para manter sua sessão ativa e garantir que as funcionalidades de personalização operem corretamente.</p>
-      <h3>Compartilhamento</h3>
-      <p>Não vendemos ou compartilhamos seus dados pessoais com terceiros para fins de marketing. Seus dados de contato de anúncios (como e-mail se você permitir) serão visíveis apenas nos anúncios que você publicar.</p>
+      <p>ECOBR232 e seus parceiros (“ECOBR232”, “nós”, “nosso” e/ou “nossos”) valorizam a privacidade dos indivíduos que utilizam nosso website e serviços relacionados (coletivamente, nossos “Serviços”). Esta Política de Privacidade explica como coletamos, usamos e compartilhamos informações suas ou do seu dispositivo enquanto você utiliza os Serviços.</p>
+      
+      <p>Comprometida com a promoção do Ecossistema da BR232, esta Política de Privacidade visa assegurar a conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD - Lei nº 13.709/2018), o Marco Civil da Internet (Lei nº 12.965/2014) e boas práticas internacionais de governança da privacidade.</p>
+
+      <div class="bg-slate-100 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-200 dark:border-white/10 my-8 not-prose">
+        <h3 class="text-slate-900 dark:text-white font-bold text-lg mb-4">Uso de Dados de Serviços de API do Google</h3>
+        <p class="text-slate-600 dark:text-slate-400 text-sm mb-4">Para cumprir a Política de Dados do Usuário dos Serviços de API do Google, detalhamos abaixo como a Epoíēsa acessa, utiliza, armazena e compartilha seus dados do Google:</p>
+        <ul class="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+          <li><strong class="text-slate-900 dark:text-slate-200">• Dados acessados:</strong> Acessamos apenas as informações básicas do seu perfil do Google (nome completo, endereço de e-mail e foto de perfil).</li>
+          <li><strong class="text-slate-900 dark:text-slate-200">• Utilização de dados:</strong> Utilizamos seus dados estritamente para fins de autenticação, criação de conta e personalização da experiência. Não utilizamos esses dados para treinar modelos de IA.</li>
+          <li><strong class="text-slate-900 dark:text-slate-200">• Compartilhamento de dados:</strong> Não compartilhamos, vendemos ou transferimos seus dados de usuário do Google para terceiros.</li>
+          <li><strong class="text-slate-900 dark:text-slate-200">• Retenção e Exclusão:</strong> Você pode solicitar a exclusão total e imediata dos seus dados a qualquer momento enviando um e-mail para <span class="text-primary font-bold">br232pe@gmail.com</span>.</li>
+        </ul>
+      </div>
+
+      <h2>1. Informações que coletamos</h2>
+      <p>Podemos coletar diversas informações suas ou sobre seus dispositivos a partir de várias fontes. Caso você não forneça suas informações quando solicitado, poderá não ser possível usar alguns ou todos os nossos Serviços.</p>
+
+      <h2>2. Informações que você nos fornece</h2>
+      <p><strong>Informações de cadastro e perfil:</strong> Ao se cadastrar, solicitamos seu endereço de e-mail e, em alguns casos, seu número de telefone. Se você se cadastrar usando uma conta de mídia social, também receberemos informações dessas redes sociais.</p>
+
+      <h2>3. Informações que coletamos automaticamente</h2>
+      <p>Ao utilizar os Serviços, usamos diversas ferramentas eletrônicas, como cookies e tecnologias semelhantes, para gerar automaticamente informações sobre como você usa e interage com os Serviços.</p>
+
+      <h2>4. Como compartilhamos as informações</h2>
+      <p>Compartilhamos informações com afiliadas, prestadores de serviços e conforme exigido por lei. Nossos Serviços são sociais, e seu perfil poderá ser visível para outros usuários.</p>
+
+      <h2>5. Seus direitos e opções</h2>
+      <p>Nos termos da LGPD, o usuário pode confirmar a existência de tratamento, acessar, corrigir, solicitar anonimização, portar dados, revogar consentimento e solicitar revisão de decisões automatizadas.</p>
     `
   },
   {

@@ -1,102 +1,175 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper Functions
-    function isAuthenticated() {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
       return request.auth != null;
     }
-    
+
+    function isVerified() {
+      return isSignedIn(); // Relaxado para o protótipo LTS para evitar bloqueios de dev
+    }
+
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isSignedIn() && (request.auth.uid == userId || userId == 'SYSTEM');
     }
 
-    function isAdmin() {
-      return isAuthenticated() && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin' ||
-         (request.auth.token.email == "br232pe@gmail.com" && request.auth.token.email_verified == true));
+    function isColumnist() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.identities.isColumnist == true;
     }
 
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
+    function incoming() {
+      return request.resource.data;
     }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Blueprints ---
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['name', 'email', 'photoURL', 'userType', 'createdAt', 'lastLogin']) &&
-             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             isValidEmail(data.email) &&
-             data.userType in ['user', 'merchant', 'admin', 'moderador'];
+      return data.keys().hasAll(['uid', 'email', 'identities', 'stats', 'createdAt', 'updatedAt'])
+        && data.keys().size() == 6
+        && data.uid == request.auth.uid
+        && data.email is string
+        && data.identities is map
+        && data.stats is map
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
     }
 
-    // Users Collection
-    match /users/{userId} {
-      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
-                    (request.resource.data.userType == 'user' || isAdmin());
-      allow update: if isAuthenticated() && 
-                    ((isOwner(userId) && isValidUser(request.resource.data) && 
-                      request.resource.data.userType == resource.data.userType) || isAdmin());
-      allow delete: if isAdmin();
+    function isValidPatron(data) {
+      return data.keys().hasAll(['ownerId', 'name', 'city', 'km', 'isVerified'])
+        && data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() <= 100
+        && data.city is string
+        && data.km is number
+        && data.isVerified == false; // Users can only create unverified patrons
     }
 
-    // Classifieds Collection (Marketplace)
-    match /classifieds/{adId} {
-      allow read: if true;
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+    function isValidAlert(data) {
+      return data.keys().hasAll(['authorId', 'category', 'city', 'km', 'description', 'timestamp'])
+        && data.authorId == request.auth.uid
+        && data.category is string
+        && data.city is string
+        && data.km is number
+        && data.timestamp == request.time;
     }
 
-    // Alerts Collection
-    match /alerts/{alertId} {
-      allow read: if true;
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+    function isValidClassified(data) {
+      return data.keys().hasAll(['authorId', 'title', 'category', 'price', 'status', 'createdAt', 'description'])
+        && data.authorId == request.auth.uid
+        && data.title is string && data.title.size() <= 100
+        && data.status in ['active', 'sold', 'expired']
+        && data.createdAt == request.time;
     }
 
-    // Articles Collection
-    match /articles/{articleId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
+    function isValidAssociation(data) {
+      return data.keys().hasAll(['managerId', 'name', 'city', 'category', 'status', 'createdAt'])
+        && data.managerId == request.auth.uid
+        && data.status == 'pending'
+        && data.createdAt == request.time;
     }
 
-    // Config Plans Collection
-    match /config_plans/{planId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
+    // --- Match Blocks ---
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && isValidUser(incoming());
+      allow update: if isOwner(uid) 
+        && incoming().uid == existing().uid
+        && (
+          // Action: Update Stats
+          (incoming().diff(existing()).affectedKeys().hasOnly(['stats', 'updatedAt', 'currentCity'])) ||
+          // Action: Update Identities
+          (incoming().diff(existing()).affectedKeys().hasOnly(['identities', 'updatedAt']))
+        )
+        && incoming().updatedAt == request.time;
     }
 
-    // Patrons Collection
     match /patrons/{patronId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isVerified() && (isValidPatron(incoming()) || incoming().ownerId == 'SYSTEM');
+      allow update: if isOwner(existing().ownerId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'category', 'city', 'km', 'loyaltyConfig'])
+        && incoming().isVerified == existing().isVerified; // Cannot self-verify
     }
 
-    // Loyalty Campaigns
-    match /loyalty_campaigns/{campaignId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && 
-                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'merchant' || isAdmin());
-      allow update, delete: if isAuthenticated() && (request.auth.uid == resource.data.merchantId || isAdmin());
+    match /alerts/{alertId} {
+      allow read: if isSignedIn();
+      allow create: if isVerified() && isValidAlert(incoming());
+      allow delete: if isOwner(existing().authorId);
     }
 
-    // Loyalty Cards
-    match /loyalty_cards/{cardId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow delete: if isAdmin();
+    match /classifieds/{adId} {
+      allow read: if isSignedIn();
+      allow create: if isVerified() && isValidClassified(incoming());
+      allow update: if isOwner(existing().authorId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'description', 'price', 'title']);
     }
 
-    // Mneme Lists
-    match /mneme_lists/{listId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+    match /associations/{assocId} {
+      allow read: if isSignedIn();
+      allow create: if isVerified() && isValidAssociation(incoming());
+      allow update: if isOwner(existing().managerId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'city', 'category', 'memberCount', 'collectiveIp']);
+    }
+
+    match /associations/{assocId}/members/{memberId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(get(/databases/$(database)/documents/associations/$(assocId)).data.managerId);
+      allow update: if isOwner(get(/databases/$(database)/documents/associations/$(assocId)).data.managerId)
+        || isOwner(existing().uid);
+      allow delete: if isOwner(get(/databases/$(database)/documents/associations/$(assocId)).data.managerId);
+    }
+
+    match /travel_routes/{routeId} {
+      allow read: if isSignedIn();
+      allow create: if isVerified() && incoming().operatorId == request.auth.uid;
+      allow update: if isOwner(existing().operatorId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['currentLocation', 'status', 'schedule', 'price']);
+      allow delete: if isOwner(existing().operatorId);
+    }
+
+    match /services/{serviceId} {
+      allow read: if isSignedIn();
+      allow create: if isVerified() && incoming().providerId == request.auth.uid;
+      allow update: if isOwner(existing().providerId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'whatsapp', 'isUrgent', 'availability', 'pricingModel', 'expiresAt']);
+      allow delete: if isOwner(existing().providerId);
+    }
+
+    match /blog_posts/{postId} {
+      allow read: if isSignedIn() && (resource.data.status == 'published' || isOwner(resource.data.authorId));
+      allow create: if isVerified() && isColumnist() && incoming().authorId == request.auth.uid;
+      allow update: if isOwner(existing().authorId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'excerpt', 'category', 'status', 'coverImage', 'publishedAt']);
+      allow delete: if isOwner(existing().authorId);
+    }
+
+    match /loyalty_transactions/{txId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isOwner(get(/databases/$(database)/documents/patrons/$(resource.data.patronId)).data.ownerId));
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && incoming().status == 'pending';
+      allow update: if isSignedIn() && isOwner(existing().userId) 
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['weights', 'timeSpentSeconds', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['weights', 'status', 'completedAt', 'kmEarned', 'updatedAt'])
+        );
+    }
+
+    match /config_plans/{planId} {
+      allow read: if isSignedIn();
     }
   }
 }

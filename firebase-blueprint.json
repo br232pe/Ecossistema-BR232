@@ -1,198 +1,243 @@
 {
   "entities": {
-    "Alert": {
-      "title": "Alerta",
-      "description": "Alerta de trânsito ou segurança na rodovia",
+    "User": {
+      "title": "User Profile",
+      "description": "Base user profile representing a member of the ECOBR232 loop.",
       "type": "object",
       "properties": {
-        "alertType": { "type": "string" },
-        "geolocation": { "type": "object", "properties": { "lat": { "type": "number" }, "lng": { "type": "number" } } },
-        "locationKm": { "type": "string" },
-        "status": { "type": "string" },
-        "timestamp": { "type": "number" },
-        "userId": { "type": "string" }
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email" },
+        "displayName": { "type": "string", "description": "Public name" },
+        "photoURL": { "type": "string", "description": "Profile picture URL" },
+        "currentCity": { "type": "string", "description": "Last known city in the malha" },
+        "identities": {
+          "type": "object",
+          "description": "Active identities/roles for this user",
+          "properties": {
+            "isConsumer": { "type": "boolean" },
+            "isPatron": { "type": "boolean" },
+            "isDriver": { "type": "boolean" },
+            "isAssociationManager": { "type": "boolean" },
+            "isTravelManager": { "type": "boolean" },
+            "isServiceProvider": { "type": "boolean" },
+            "isColumnist": { "type": "boolean" }
+          }
+        },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "ip": { "type": "number" },
+            "merit": { "type": "number" },
+            "associationForce": { "type": "number" },
+            "totalKm": { "type": "number" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["alertType", "locationKm", "status", "userId"]
-    },
-    "Article": {
-      "title": "Artigo",
-      "description": "Conteúdo editorial ou notícia",
-      "type": "object",
-      "properties": {
-        "authorId": { "type": "string" },
-        "category": { "type": "string" },
-        "content": { "type": "string" },
-        "coverImageUrl": { "type": "string" },
-        "publishedAt": { "type": "number" },
-        "status": { "type": "string" },
-        "title": { "type": "string" }
-      },
-      "required": ["authorId", "title", "content", "status"]
-    },
-    "Classified": {
-      "title": "Classificado",
-      "description": "Anúncio de serviço ou produto",
-      "type": "object",
-      "properties": {
-        "category": { "type": "string" },
-        "city": { "type": "string" },
-        "contact_whatsapp": { "type": "string" },
-        "locationMap": { "type": "object", "properties": { "lat": { "type": "number" }, "lng": { "type": "number" } } },
-        "ratingAvg": { "type": "number" },
-        "serviceUnitType": { "type": "string" },
-        "status": { "type": "string" },
-        "timestamp": { "type": "number" },
-        "title": { "type": "string" },
-        "userId": { "type": "string" }
-      },
-      "required": ["category", "city", "title", "userId", "status"]
-    },
-    "ConfigPlan": {
-      "title": "Plano de Configuração",
-      "description": "Configurações de precificação e limites para associações",
-      "type": "object",
-      "properties": {
-        "base_price": { "type": "number" },
-        "bracket_1_price": { "type": "number" },
-        "bracket_2_price": { "type": "number" },
-        "bracket_3_price": { "type": "number" },
-        "cycle": { "type": "string" },
-        "description": { "type": "string" },
-        "is_simulated": { "type": "boolean" },
-        "memberLimit": { "type": "number" },
-        "name": { "type": "string" }
-      },
-      "required": ["name", "base_price", "memberLimit"]
+      "required": ["uid", "email", "identities", "stats", "createdAt", "updatedAt"]
     },
     "Patron": {
-      "title": "Patrono",
-      "description": "Estabelecimento patrocinador do ecossistema",
+      "title": "Patron Business",
+      "description": "A verified business (lindeiro) on the BR-232.",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
         "name": { "type": "string" },
-        "type": { "type": "string", "enum": ["PF", "PJ"] },
-        "status": { "type": "string" },
-        "level": { "type": "string" },
-        "mediaUrl": { "type": "string" },
-        "profileText": { "type": "string" },
-        "externalLink": { "type": "string" },
-        "expirationDate": { "type": "number" },
-        "userId": { "type": "string" }
+        "category": { "type": "string" },
+        "city": { "type": "string" },
+        "km": { "type": "number" },
+        "description": { "type": "string" },
+        "isVerified": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "type", "status", "level"]
+      "required": ["ownerId", "name", "city", "km", "isVerified"]
     },
-    "MnemeList": {
-      "title": "Lista Mneme",
-      "description": "Lista de compras ou gestão doméstica",
+    "Alert": {
+      "title": "Real-time Alert",
+      "description": "A road alert reported by a user.",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "category": { "type": "string" },
+        "city": { "type": "string" },
+        "km": { "type": "number" },
+        "description": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "category", "city", "km", "timestamp"]
+    },
+    "Classified": {
+      "title": "Marketplace Ad",
+      "description": "A classified ad in 'A Feira Digital'.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
         "title": { "type": "string" },
-        "createdAt": { "type": "number" },
-        "userId": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "archived"] },
-        "items": { 
-          "type": "array", 
-          "items": { 
-            "type": "object",
-            "properties": {
-              "id": { "type": "string" },
-              "name": { "type": "string" },
-              "category": { "type": "string" },
-              "quantity": { "type": "number" },
-              "unit": { "type": "string" },
-              "checked": { "type": "boolean" },
-              "estimatedPrice": { "type": "number" }
-            }
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "sold", "expired"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "title", "category", "price", "status", "createdAt"]
+    },
+    "Association": {
+      "title": "Association",
+      "description": "A group of professionals (e.g., Moto-Taxi) managed by a central entity.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "managerId": { "type": "string" },
+        "name": { "type": "string" },
+        "city": { "type": "string" },
+        "category": { "type": "string" },
+        "memberCount": { "type": "number" },
+        "collectiveIp": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "pending", "suspended"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["managerId", "name", "city", "category", "status", "createdAt"]
+    },
+    "TravelRoute": {
+      "title": "Travel Route",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "type": { "type": "string", "enum": ["curto", "longo", "interbairros"] },
+        "origin": { "type": "string" },
+        "destination": { "type": "string" },
+        "vehicleType": { "type": "string" },
+        "currentLocation": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" },
+            "lastUpdate": { "type": "string", "format": "date-time" }
           }
-        }
+        },
+        "status": { "type": "string" },
+        "schedule": { "type": "string" },
+        "price": { "type": "number" }
       },
-      "required": ["title", "userId", "status", "items"]
+      "required": ["operatorId", "type", "origin", "destination", "status"]
     },
-    "LoyaltyCampaign": {
-      "title": "Campanha de Fidelidade",
-      "description": "Campanha criada por um comerciante",
+    "ServiceAnnouncement": {
+      "title": "Service Announcement",
+      "description": "Anuncio de servico Low Cost (Vida das Cidades)",
       "type": "object",
       "properties": {
-        "merchantName": { "type": "string" },
-        "merchantId": { "type": "string" },
+        "id": { "type": "string" },
+        "providerId": { "type": "string" },
         "title": { "type": "string" },
-        "goal": { "type": "number" },
-        "reward": { "type": "string" },
-        "rules": { "type": "string" },
-        "color": { "type": "string" },
-        "activeUsers": { "type": "number" },
-        "createdAt": { "type": "number" }
+        "category": { "type": "string" },
+        "subCategory": { "type": "string" },
+        "description": { "type": "string" },
+        "city": { "type": "string" },
+        "neighborhood": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "pricingModel": { "type": "string", "enum": ["free", "top", "emergency"] },
+        "isUrgent": { "type": "boolean" },
+        "availability": { "type": "string" },
+        "rating": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["merchantName", "merchantId", "title", "goal"]
+      "required": ["providerId", "title", "category", "city", "whatsapp", "pricingModel"]
     },
-    "LoyaltyCard": {
-      "title": "Cartão de Fidelidade",
-      "description": "Cartão de um usuário em uma campanha",
+    "BlogPost": {
+      "title": "Blog Post",
+      "description": "Editorial content for the ecosystem",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
-        "campaignId": { "type": "string" },
-        "merchantName": { "type": "string" },
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
         "title": { "type": "string" },
-        "currentStamps": { "type": "number" },
-        "goal": { "type": "number" },
-        "reward": { "type": "string" },
-        "color": { "type": "string" },
-        "lastStampDate": { "type": "number" },
-        "isCompleted": { "type": "boolean" }
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "published"] },
+        "publishedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["userId", "campaignId", "currentStamps", "goal"]
-    },
-    "User": {
-      "title": "Usuário",
-      "description": "Perfil do usuário no ecossistema",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "userType": { "type": "string", "enum": ["user", "merchant", "admin", "moderador"] },
-        "email": { "type": "string" },
-        "photoURL": { "type": "string" },
-        "createdAt": { "type": "number" }
-      },
-      "required": ["name", "userType"]
+      "required": ["authorId", "authorName", "title", "content", "status"]
     }
   },
   "firestore": {
-    "alerts": {
-      "schema": "Alert",
-      "description": "Alertas de trânsito"
-    },
-    "articles": {
-      "schema": "Article",
-      "description": "Artigos e notícias"
-    },
-    "classifieds": {
-      "schema": "Classified",
-      "description": "Classificados e serviços"
-    },
-    "config_plans": {
-      "schema": "ConfigPlan",
-      "description": "Planos e precificação"
-    },
-    "patrons": {
-      "schema": "Patron",
-      "description": "Patronos e mantenedores"
-    },
-    "users": {
+    "users/{uid}": {
       "schema": "User",
-      "description": "Perfis de usuários"
+      "description": "User profiles"
     },
-    "loyalty_campaigns": {
-      "schema": "LoyaltyCampaign",
-      "description": "Campanhas de fidelidade"
+    "services/{serviceId}": {
+      "schema": "ServiceAnnouncement",
+      "description": "City services directory"
     },
-    "loyalty_cards": {
-      "schema": "LoyaltyCard",
-      "description": "Cartões de fidelidade dos usuários"
+    "blog_posts/{postId}": {
+      "schema": "BlogPost",
+      "description": "Editorial content and news"
     },
-    "mneme_lists": {
-      "schema": "MnemeList",
-      "description": "Listas de compras Mneme"
+    "associations/{assocId}": {
+      "schema": "Association",
+      "description": "Professional associations"
+    },
+    "associations/{assocId}/members/{memberId}": {
+      "schema": {
+        "title": "Association Member",
+        "type": "object",
+        "properties": {
+          "uid": { "type": "string" },
+          "role": { "type": "string" },
+          "joinedAt": { "type": "string", "format": "date-time" },
+          "status": { "type": "string" }
+        }
+      },
+      "description": "Members belonging to an association"
+    },
+    "patrons/{patronId}": {
+      "schema": "Patron",
+      "description": "Verified businesses"
+    },
+    "alerts/{alertId}": {
+      "schema": "Alert",
+      "description": "Road alerts"
+    },
+    "classifieds/{adId}": {
+      "schema": "Classified",
+      "description": "Marketplace ads"
+    },
+    "loyalty_transactions/{txId}": {
+      "schema": {
+        "title": "Loyalty Transaction",
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string" },
+          "patronId": { "type": "string" },
+          "weights": { "type": "object" },
+          "status": { "type": "string" },
+          "kmEarned": { "type": "number" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "Telemetry and conversion logs for loyalty"
+    },
+    "config_plans/{planId}": {
+      "schema": {
+        "title": "Association Plan",
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "base_price": { "type": "number" },
+          "cycle": { "type": "string" }
+        }
+      },
+      "description": "System configuration for plans and associations"
     }
   }
 }

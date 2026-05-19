@@ -4,13 +4,16 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "tsx server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "lint": "tsc --noEmit",
-    "preview": "vite preview"
+    "start": "node dist/server.cjs"
   },
   "dependencies": {
     "@google/genai": "^0.3.0",
+    "@vis.gl/react-google-maps": "^1.8.3",
+    "esbuild": "^0.28.0",
+    "express": "^5.2.1",
     "firebase": "^10.14.1",
     "framer-motion": "^12.38.0",
     "html5-qrcode": "^2.3.8",
@@ -19,10 +22,13 @@
     "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.0"
+    "react-router-dom": "^6.22.0",
+    "recharts": "^3.8.1",
+    "tsx": "^4.22.2"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
+    "@types/google.maps": "^3.64.1",
+    "@types/node": "^20.19.41",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.0",

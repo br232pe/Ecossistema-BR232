@@ -1,1 +1,810 @@
-import React from 'react'; export default () => <div>MnemeList</div>;
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ArrowLeft, 
+  Menu, 
+  X, 
+  Plus, 
+  Trash2, 
+  CheckCircle2, 
+  Settings,
+  Users,
+  BrainCircuit, 
+  MapPin, 
+  ChevronDown, 
+  ChevronUp, 
+  Tag, 
+  Sparkles, 
+  Loader2, 
+  Calendar, 
+  RefreshCcw,
+  Search,
+  DollarSign
+} from 'lucide-react';
+import { mnemeService } from '../src/services/mnemeService';
+import { calendarService } from '../src/services/calendarService';
+import { SafetyGuardOverlay } from '../src/components/SafetyGuard';
+import { MnemeList as MnemeListType, MnemeItem } from '../src/types';
+import { MNEME_CATALOG, CatalogItem, getCategoryIcon } from '../src/constants/mnemeCatalog';
+import { useAuth } from '../src/contexts/AuthContext'; 
+import { db } from '../src/contexts/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+
+const SECTIONS = [
+  'Hortifruti',
+  'Padaria',
+  'Açougue/Peixaria',
+  'Laticínios',
+  'Higiene',
+  'Limpeza',
+  'Bebidas',
+  'Mercearia',
+  'Utilidades'
+];
+
+const MnemeList: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user, accessToken, loginWithGoogle } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  const [list, setList] = useState<MnemeListType | null>(null);
+  const [items, setItems] = useState<MnemeItem[]>([]);
+  const [newItemName, setNewItemName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(SECTIONS[0]);
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [travelPlans, setTravelPlans] = useState<any[]>([]);
+  const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+
+  // Catalog State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [catalogResults, setCatalogResults] = useState<CatalogItem[]>([]);
+  const [showCatalog, setShowCatalog] = useState(false);
+
+  // Completion State
+  const [itemToComplete, setItemToComplete] = useState<MnemeItem | null>(null);
+  const [completionPrice, setCompletionPrice] = useState('');
+
+  // Editing State
+  const [editingItem, setEditingItem] = useState<MnemeItem | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editQuantity, setEditQuantity] = useState('');
+  const [editCategory, setEditCategory] = useState(SECTIONS[0]);
+
+  useEffect(() => {
+    if (!id || !user) return;
+
+    // Carregar Metadados da Lista
+    const fetchList = async () => {
+      const docRef = doc(db, 'mneme_lists', id);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        setList({ id: snap.id, ...snap.data() } as MnemeListType);
+      }
+    };
+    fetchList();
+
+    // Sincronização em tempo real dos itens
+    const unsubscribe = mnemeService.subscribeToItems(id, (updatedItems: MnemeItem[]) => {
+      setItems(updatedItems);
+      // Inicializar expansão de seções que tem itens
+      const sectionsWithItems = [...new Set(updatedItems.map((i: MnemeItem) => i.category))];
+      setExpandedSections(prev => {
+        const next: Record<string, boolean> = { ...prev };
+        sectionsWithItems.forEach((s: string) => {
+           if (next[s] === undefined) next[s] = true;
+        });
+        return next;
+      });
+    });
+
+    return () => unsubscribe();
+  }, [id, user]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setCatalogResults([]);
+      setShowCatalog(false);
+      return;
+    }
+
+    const filtered = MNEME_CATALOG.filter(item => 
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchQuery.toLowerCase())
+    ).slice(0, 5);
+    
+    setCatalogResults(filtered);
+    setShowCatalog(true);
+  }, [searchQuery]);
+
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItemName.trim() || !id || !user) return;
+
+    await mnemeService.addItem(id, user.uid, {
+      name: newItemName,
+      category: selectedCategory,
+      quantity: '1'
+    });
+    setNewItemName('');
+    setSearchQuery('');
+    setShowCatalog(false);
+  };
+
+  const addCatalogItem = async (catalogItem: CatalogItem) => {
+    if (!id || !user) return;
+    await mnemeService.addItem(id, user.uid, {
+      name: catalogItem.name,
+      category: catalogItem.category,
+      quantity: catalogItem.defaultUnit,
+      vibe: catalogItem.vibe
+    });
+    setSearchQuery('');
+    setNewItemName('');
+    setShowCatalog(false);
+  };
+
+  const handleToggleItem = async (item: MnemeItem) => {
+    if (item.isCompleted) {
+      // Se já está completo, apenas desmarcar
+      await mnemeService.toggleItem(id!, item.id, false);
+    } else {
+      // Se vai completar, abrir modal de preço
+      setItemToComplete(item);
+      setCompletionPrice('');
+    }
+  };
+
+  const confirmCompletion = async () => {
+    if (!itemToComplete || !id) return;
+    const price = parseFloat(completionPrice.replace(',', '.'));
+    await mnemeService.updateItem(itemToComplete.id, {
+      isCompleted: true,
+      price: isNaN(price) ? 0 : price
+    });
+    setItemToComplete(null);
+  };
+
+  const startEditing = (item: MnemeItem) => {
+    setEditingItem(item);
+    setEditName(item.name);
+    setEditQuantity(item.quantity || '1');
+    setEditCategory(item.category || SECTIONS[0]);
+  };
+
+  const saveEdit = async () => {
+    if (!editingItem) return;
+    await mnemeService.updateItem(editingItem.id, {
+      name: editName,
+      quantity: editQuantity,
+      category: editCategory
+    });
+    setEditingItem(null);
+  };
+
+  const finalizePurchase = async () => {
+    if (!id) return;
+    const total = items.reduce((sum, item) => sum + (item.price || 0), 0);
+    if (confirm(`Deseja finalizar esta auditoria? Total registrado: R$ ${total.toFixed(2)}`)) {
+      await mnemeService.archiveList(id);
+      // We could also store the totalSpent in the list metadata
+      const listRef = doc(db, 'mneme_lists', id);
+      const { updateDoc: fbUpdateDoc } = await import('firebase/firestore');
+      await fbUpdateDoc(listRef, { totalSpent: total });
+      navigate('/mneme');
+    }
+  };
+
+  const syncCalendar = async () => {
+    if (!accessToken) {
+      // Se não tem token mas está logado, talvez precise re-autenticar com o scope
+      await loginWithGoogle();
+      return;
+    }
+
+    setIsSyncingCalendar(true);
+    try {
+      const events = await calendarService.fetchUpcomingEvents(accessToken);
+      const trips = calendarService.filterBr232Trips(events);
+      setTravelPlans(trips);
+    } catch (err) {
+      console.error('Erro ao sincronizar calendário:', err);
+    } finally {
+      setIsSyncingCalendar(false);
+    }
+  };
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim() || !id) return;
+    await mnemeService.addMember(id, inviteEmail);
+    setInviteEmail('');
+    setIsInviteOpen(false);
+  };
+
+  const runAiAnalysis = async () => {
+    if (items.length === 0) return;
+    setIsAiAnalyzing(true);
+    setAiAnalysis(null);
+    
+    try {
+      const response = await fetch('/api/mneme/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          items, 
+          supermarketName: list?.supermarketName,
+          travelPlans
+        })
+      });
+      const data = await response.json();
+      setAiAnalysis(data.analysis);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAiAnalyzing(false);
+    }
+  };
+
+  const groupedItems = SECTIONS.reduce((acc, section) => {
+    const sectionItems = items.filter(i => i.category === section);
+    if (sectionItems.length > 0) acc[section] = sectionItems;
+    return acc;
+  }, {} as Record<string, MnemeItem[]>);
+
+  if (!list) return <div className="min-h-screen bg-[#05100a] flex items-center justify-center">Carregando Auditoria...</div>;
+
+  return (
+    <div className="min-h-screen bg-[#05100a] text-white pb-40">
+      {/* Header Contextual (Responsive) */}
+      <header className="px-6 py-10 sm:py-16 space-y-8 relative overflow-hidden flex-shrink-0 z-10">
+         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent opacity-50" />
+         
+         <div className="flex items-center justify-between max-w-6xl mx-auto relative z-20">
+            <div className="flex items-center gap-4 sm:gap-6">
+               <button 
+                 onClick={() => navigate('/mneme')}
+                 className="size-12 sm:size-16 rounded-2xl sm:rounded-[1.8rem] bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:bg-white/10 transition-all"
+               >
+                  <ArrowLeft size={24} />
+               </button>
+               <div className="space-y-1 sm:space-y-2">
+                  <h1 className="text-3xl sm:text-5xl font-black italic uppercase italic tracking-tighter leading-none group-hover:text-primary transition-colors">{list?.name || 'Carregando...'}</h1>
+                  <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-bold uppercase italic text-slate-500">
+                     <MapPin size={12} className="text-primary" />
+                     <span>{list?.supermarketName || 'Multimarcas Regional'}</span>
+                  </div>
+               </div>
+            </div>
+            
+            <div className="flex items-center gap-2 sm:gap-3">
+               {/* Desktop Actions */}
+               <div className="hidden sm:flex items-center gap-2">
+                  {items.length > 0 && items.some(i => i.isCompleted) && (
+                    <button 
+                      onClick={finalizePurchase}
+                      className="h-10 px-4 bg-primary text-black rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-all"
+                    >
+                       Finalizar Compra
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setIsInviteOpen(true)}
+                    className="h-10 px-4 bg-white/5 border border-white/10 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all text-slate-300"
+                  >
+                     <Users size={14} className="text-primary" />
+                     <span>Convidar</span>
+                  </button>
+               </div>
+
+               <button 
+                 onClick={() => setIsMenuOpen(!isMenuOpen)}
+                 className="lg:hidden size-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-primary active:scale-95 transition-all"
+               >
+                 {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+               </button>
+
+               <button 
+                 className="hidden sm:flex size-14 sm:size-16 rounded-2xl bg-white/5 border border-white/10 items-center justify-center text-slate-400 hover:bg-white/10 transition-all"
+               >
+                  <Settings size={24} />
+               </button>
+            </div>
+         </div>
+
+         {/* Mobile Menu Overlay */}
+         <AnimatePresence>
+            {isMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, x: '100%' }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed inset-0 z-[100] bg-[#05100a] lg:hidden p-8 pt-24 space-y-8 flex flex-col items-center text-center overflow-y-auto font-sans focus:outline-none focus:ring-0"
+              >
+                 <button onClick={() => setIsMenuOpen(false)} className="absolute top-8 right-8 size-12 rounded-2xl bg-white/5 flex items-center justify-center text-primary">
+                    <X size={24} />
+                 </button>
+                 
+                 <nav className="flex flex-col gap-6 w-full">
+                    <button onClick={() => { navigate('/portal'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Portal BR232</button>
+                    <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Central Mnēmē</button>
+                    <button onClick={() => { navigate('/mneme/dashboard'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-[#ff751f]/10 border border-[#ff751f]/20 text-lg font-black uppercase tracking-[0.2em] italic text-[#ff751f]">Dashboard Mnēmē</button>
+                    <button onClick={() => { navigate('/guia-servicos'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Guia de Serviços</button>
+                    <button onClick={() => { navigate('/dashboard'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-primary/10 border border-primary/20 text-lg font-black uppercase tracking-[0.2em] italic text-primary">Meu Painel</button>
+                 </nav>
+                 
+                 <div className="w-full h-px bg-white/5" />
+                 
+                 <div className="flex flex-col gap-3 w-full pb-12">
+                    <button onClick={() => { setIsInviteOpen(true); setIsMenuOpen(false); }} className="h-14 rounded-xl border border-primary/30 text-[10px] font-black uppercase text-primary tracking-widest flex items-center justify-center gap-2">
+                       <Users size={16} /> Convidar Familiar
+                    </button>
+                    {items.length > 0 && items.some(i => i.isCompleted) && (
+                       <button onClick={() => { finalizePurchase(); setIsMenuOpen(false); }} className="h-14 rounded-xl bg-primary text-black text-[10px] font-black uppercase tracking-widest shadow-xl">
+                          Finalizar Auditoria
+                       </button>
+                    )}
+                 </div>
+              </motion.div>
+            )}
+         </AnimatePresence>
+      </header>
+
+      {/* Quick Add & Catalog Search */}
+      <div className="px-6 -mt-6 relative z-50">
+         <div className="p-4 bg-black/80 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+               <div className="size-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-500">
+                  <Search size={18} />
+               </div>
+               <input 
+                 type="text" 
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 onFocus={() => searchQuery && setShowCatalog(true)}
+                 placeholder="Buscar no Catálogo Regional..."
+                 className="flex-1 bg-transparent border-none text-sm font-bold placeholder:text-slate-600 focus:ring-0"
+               />
+            </div>
+
+            <AnimatePresence>
+               {showCatalog && catalogResults.length > 0 && (
+                 <motion.div 
+                   initial={{ opacity: 0, scale: 0.95 }}
+                   animate={{ opacity: 1, scale: 1 }}
+                   exit={{ opacity: 0, scale: 0.95 }}
+                   className="space-y-1 pt-2 border-t border-white/5"
+                 >
+                    {catalogResults.map((item, idx) => (
+                      <button 
+                        key={idx}
+                        onClick={() => addCatalogItem(item)}
+                        className="w-full flex items-center justify-between p-3 hover:bg-white/5 rounded-xl transition-all group"
+                      >
+                         <div className="flex items-center gap-3">
+                            <span className="text-lg">{getCategoryIcon(item.category)}</span>
+                            <div className="text-left">
+                               <p className="text-xs font-black uppercase tracking-tighter text-white">{item.name}</p>
+                               <p className="text-[9px] font-bold text-slate-500 uppercase">{item.category} • {item.vibe}</p>
+                            </div>
+                         </div>
+                         <Plus size={16} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    ))}
+                 </motion.div>
+               )}
+            </AnimatePresence>
+
+            <form onSubmit={handleAddItem} className="flex items-center gap-3 pt-2 border-t border-white/5">
+                <select 
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="bg-white/5 border-none text-[10px] font-black uppercase tracking-widest rounded-xl px-3 h-12 focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer"
+                >
+                  {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <input 
+                  type="text" 
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  placeholder="Item personalizado..."
+                  className="flex-1 bg-transparent border-none text-sm font-medium focus:ring-0 placeholder:text-slate-600"
+                />
+                <button type="submit" className="size-12 rounded-2xl bg-primary text-black flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+                  <Plus size={24} />
+                </button>
+            </form>
+         </div>
+      </div>
+
+      <main className="px-6 mt-12 space-y-8">
+        
+        {/* IA Analysis Trigger */}
+        <div className="space-y-6">
+           {/* Widget de Sincronia de Agenda */}
+           <div className="px-6 py-4 bg-[#ff751f]/10 border border-[#ff751f]/20 rounded-[2rem] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                 <div className="size-10 rounded-xl bg-[#ff751f]/20 flex items-center justify-center text-[#ff751f]">
+                    <Calendar size={20} />
+                 </div>
+                 <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[#ff751f]">Sincronia de Agenda</h4>
+                    <p className="text-[11px] font-bold italic text-slate-400">
+                       {travelPlans.length > 0 
+                         ? `${travelPlans.length} viagens detectadas na 232` 
+                         : 'Sincronize suas viagens para arbitrar preços'
+                       }
+                    </p>
+                 </div>
+              </div>
+              <button 
+                onClick={syncCalendar}
+                disabled={isSyncingCalendar}
+                className="size-10 rounded-full bg-[#ff751f] text-black flex items-center justify-center hover:rotate-180 transition-all duration-500"
+              >
+                 {isSyncingCalendar ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />}
+              </button>
+           </div>
+
+           <div className="p-1 rounded-[2rem] bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 shadow-2xl">
+           <div className="p-6 bg-[#05100a] rounded-[1.9rem] border border-white/5 flex flex-col gap-6">
+              <div className="flex items-center justify-between">
+                 <div className="flex items-center gap-3">
+                    <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                       <BrainCircuit size={20} />
+                    </div>
+                    <div>
+                       <h4 className="text-sm font-black italic uppercase italic tracking-widest text-primary">Análise Mnēmē</h4>
+                       <p className="text-[10px] text-slate-500 font-medium italic">Inteligência Nutricional & Regional</p>
+                    </div>
+                 </div>
+                 <button 
+                  onClick={runAiAnalysis}
+                  disabled={isAiAnalyzing || items.length === 0}
+                  className="px-6 py-2 bg-primary text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                 >
+                    {isAiAnalyzing ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Analisar Lista'}
+                 </button>
+              </div>
+
+              {aiAnalysis && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="prose prose-invert prose-sm max-w-none p-4 bg-white/5 rounded-2xl border border-white/5 italic font-medium text-slate-300"
+                >
+                   {aiAnalysis}
+                </motion.div>
+              )}
+           </div>
+        </div>
+     </div>
+
+        {/* Widget "Sua Cidade, Seu Radar" - Refinement for Resident */}
+        <div className="space-y-4">
+           <div className="flex items-center justify-between px-2">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 italic">Oportunidades em {list.supermarketName?.split(' ')[0] || 'Gravatá'}</h3>
+              <div className="flex items-center gap-2 text-primary font-black uppercase text-[8px] tracking-widest">
+                 <div className="size-1.5 rounded-full bg-primary animate-pulse" />
+                 Radar Ativo
+              </div>
+           </div>
+           
+           <div className="grid grid-cols-2 gap-4">
+              <motion.div 
+                whileHover={{ y: -5 }}
+                className="p-5 bg-white/5 border border-white/10 rounded-[2rem] space-y-4 relative overflow-hidden group cursor-pointer"
+              >
+                 <div className="absolute top-0 right-0 p-4 text-white/5 -mr-2 -mt-2">
+                    <Tag size={40} />
+                 </div>
+                 <div className="space-y-1">
+                    <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">Oferta Patrona</p>
+                    <h5 className="text-sm font-black italic uppercase leading-none">Picanha Maturatta</h5>
+                 </div>
+                 <div className="flex items-center justify-between">
+                    <span className="text-primary font-black italic">R$ 59,90</span>
+                    <div className="px-2 py-0.5 bg-primary/20 text-primary text-[8px] font-black rounded-md">KM 84</div>
+                 </div>
+                 <button className="w-full h-10 bg-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest group-hover:bg-primary group-hover:text-black transition-all">Ver na Feira</button>
+              </motion.div>
+
+              <motion.div 
+                whileHover={{ y: -5 }}
+                className="p-5 bg-white/5 border border-white/10 rounded-[2rem] space-y-4 relative overflow-hidden group cursor-pointer"
+              >
+                 <div className="absolute top-0 right-0 p-4 text-white/5 -mr-2 -mt-2">
+                    <Sparkles size={40} />
+                 </div>
+                 <div className="space-y-1">
+                    <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">Em Classificados</p>
+                    <h5 className="text-sm font-black italic uppercase leading-none">Freezer Vertical</h5>
+                 </div>
+                 <div className="flex items-center justify-between">
+                    <span className="text-primary font-black italic">R$ 1.200</span>
+                    <div className="px-2 py-0.5 bg-primary/20 text-primary text-[8px] font-black rounded-md">KM 82</div>
+                 </div>
+                 <button className="w-full h-10 bg-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest group-hover:bg-primary group-hover:text-black transition-all">Ver Detalhes</button>
+              </motion.div>
+           </div>
+        </div>
+
+        {/* List Content Grouped by Section */}
+        <div className="space-y-6">
+           {Object.keys(groupedItems).length === 0 && (
+             <div className="text-center py-20 space-y-4">
+                <Sparkles size={40} className="mx-auto text-slate-800" />
+                <p className="text-slate-600 text-sm italic font-medium uppercase tracking-widest">A lista está limpa.</p>
+             </div>
+           )}
+
+           {Object.entries(groupedItems).map(([section, sectionItems]) => (
+             <div key={section} className="space-y-4">
+                <button 
+                  onClick={() => setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }))}
+                  className="w-full flex items-center justify-between py-2 border-b border-white/5"
+                >
+                   <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 italic">{section}</span>
+                      <span className="text-[9px] px-2 py-0.5 bg-white/5 rounded-full font-bold text-slate-500">{sectionItems.length}</span>
+                   </div>
+                   {expandedSections[section] ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
+                </button>
+
+                <AnimatePresence>
+                   {expandedSections[section] && (
+                     <motion.div 
+                       initial={{ height: 0, opacity: 0 }}
+                       animate={{ height: 'auto', opacity: 1 }}
+                       exit={{ height: 0, opacity: 0 }}
+                       className="overflow-hidden space-y-2"
+                     >
+                        {sectionItems.map(item => (
+                          <div 
+                            key={item.id}
+                            className={`p-4 rounded-2xl border transition-all flex items-center justify-between group ${item.isCompleted ? 'bg-white/[0.02] border-transparent opacity-50' : 'bg-white/5 border-white/5 hover:border-primary/30'}`}
+                          >
+                             <div className="flex items-center gap-4 flex-1">
+                                <button 
+                                  onClick={() => handleToggleItem(item)}
+                                  className={`size-6 rounded-full border-2 flex items-center justify-center transition-all ${item.isCompleted ? 'bg-primary border-primary text-black' : 'border-white/20 hover:border-primary'}`}
+                                >
+                                   {item.isCompleted && <CheckCircle2 size={14} strokeWidth={3} />}
+                                </button>
+                                <div className="space-y-0.5">
+                                   <div className="flex items-center gap-2">
+                                      <span className={`text-sm font-bold italic uppercase transition-all ${item.isCompleted ? 'line-through text-slate-600' : 'text-white'}`}>{item.name}</span>
+                                      {item.price && (
+                                        <span className="text-[10px] font-black text-primary px-2 py-0.5 bg-primary/10 rounded">R$ {item.price.toFixed(2)}</span>
+                                      )}
+                                   </div>
+                                   <div className="flex items-center gap-2">
+                                      <Tag size={10} className="text-slate-500" />
+                                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">
+                                        {item.quantity} {item.vibe ? `• ${item.vibe}` : ''}
+                                      </span>
+                                   </div>
+                                </div>
+                             </div>
+                             <div className="flex items-center gap-1">
+                                <button 
+                                  onClick={() => startEditing(item)}
+                                  className="size-10 rounded-xl hover:bg-white/10 text-slate-700 hover:text-white transition-all flex items-center justify-center"
+                                >
+                                   <Settings size={16} />
+                                </button>
+                                <button 
+                                  onClick={() => mnemeService.deleteItem(item.id)}
+                                  className="size-10 rounded-xl hover:bg-red-500/10 hover:text-red-500 text-slate-700 transition-all flex items-center justify-center"
+                                >
+                                   <Trash2 size={18} />
+                                </button>
+                             </div>
+                          </div>
+                        ))}
+                     </motion.div>
+                   )}
+                </AnimatePresence>
+             </div>
+           ))}
+        </div>
+      </main>
+
+      {/* Diálogo com A Feira / Classificados */}
+      <div className="fixed bottom-12 right-6 z-40 flex flex-col gap-3">
+         <motion.button 
+           whileHover={{ scale: 1.1, x: -5 }}
+           onClick={() => navigate('/guia-servicos')}
+           className="h-14 px-6 bg-[#ff751f] text-black rounded-2xl font-black uppercase text-[9px] tracking-widest flex items-center gap-3 shadow-2xl"
+         >
+            <Tag size={16} /> A Feira
+         </motion.button>
+         <motion.button 
+           whileHover={{ scale: 1.1, x: -5 }}
+           onClick={() => navigate('/classificados')}
+           className="h-14 px-6 bg-primary text-black rounded-2xl font-black uppercase text-[9px] tracking-widest flex items-center gap-3 shadow-2xl"
+         >
+            <Sparkles size={16} /> Classificados
+         </motion.button>
+      </div>
+
+      <SafetyGuardOverlay />
+
+      {/* Manual Price Entry Modal */}
+      <AnimatePresence>
+         {itemToComplete && (
+           <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setItemToComplete(null)}
+                className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-sm bg-[#0a1811] border border-primary/30 p-8 rounded-[2.5rem] shadow-4xl text-center space-y-6"
+              >
+                 <div className="space-y-4">
+                    <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto">
+                       <DollarSign size={32} />
+                    </div>
+                    <div>
+                       <h3 className="text-xl font-black italic uppercase tracking-tighter">Preço na Prateleira</h3>
+                       <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Registrar auditoria para {itemToComplete.name}</p>
+                    </div>
+                    
+                    <div className="relative">
+                       <span className="absolute left-6 top-1/2 -translate-y-1/2 text-primary font-black">R$</span>
+                       <input 
+                         autoFocus
+                         type="text" 
+                         inputMode="decimal"
+                         value={completionPrice}
+                         onChange={(e) => setCompletionPrice(e.target.value)}
+                         placeholder="0,00"
+                         className="w-full h-16 pl-14 pr-6 bg-white/5 border border-white/10 rounded-2xl text-2xl font-black text-white focus:outline-none focus:border-primary"
+                       />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                       <button 
+                         onClick={() => setItemToComplete(null)}
+                         className="h-14 bg-white/5 text-slate-400 rounded-2xl font-black uppercase text-[10px] tracking-widest"
+                       >
+                          Pular
+                       </button>
+                       <button 
+                         onClick={confirmCompletion}
+                         className="h-14 bg-primary text-black rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl"
+                       >
+                          Confirmar
+                       </button>
+                    </div>
+                 </div>
+              </motion.div>
+           </div>
+         )}
+      </AnimatePresence>
+
+      {/* Edit Item Modal */}
+      <AnimatePresence>
+         {editingItem && (
+           <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setEditingItem(null)}
+                className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-sm bg-[#0a1811] border border-white/10 p-8 rounded-[2.5rem] shadow-4xl text-center space-y-6"
+              >
+                 <div className="space-y-4">
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter">Editar Item</h3>
+                    
+                    <div className="space-y-4 text-left">
+                       <div className="space-y-1">
+                          <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-2">Nome</label>
+                          <input 
+                            type="text" 
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-sm font-bold focus:outline-none focus:border-primary"
+                          />
+                       </div>
+                       
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                             <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-2">Quantidade</label>
+                             <input 
+                               type="text" 
+                               value={editQuantity}
+                               onChange={(e) => setEditQuantity(e.target.value)}
+                               className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-sm font-bold focus:outline-none focus:border-primary"
+                             />
+                          </div>
+                          <div className="space-y-1">
+                             <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-2">Categoria</label>
+                             <select 
+                               value={editCategory}
+                               onChange={(e) => setEditCategory(e.target.value)}
+                               className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:border-primary appearance-none cursor-pointer"
+                             >
+                                {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                             </select>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-4">
+                       <button 
+                         onClick={() => setEditingItem(null)}
+                         className="h-14 bg-white/5 text-slate-400 rounded-2xl font-black uppercase text-[10px] tracking-widest"
+                       >
+                          Voltar
+                       </button>
+                       <button 
+                         onClick={saveEdit}
+                         className="h-14 bg-primary text-black rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl"
+                       >
+                          Salvar
+                       </button>
+                    </div>
+                 </div>
+              </motion.div>
+           </div>
+         )}
+      </AnimatePresence>
+
+      {/* Invite Modal */}
+      <AnimatePresence>
+         {isInviteOpen && (
+           <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setIsInviteOpen(false)}
+                className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="relative w-full max-w-sm bg-[#0a1811] border border-white/10 p-8 rounded-[2.5rem] shadow-3xl text-center space-y-6"
+              >
+                <div className="space-y-4">
+                   <h3 className="text-2xl font-black italic uppercase italic tracking-tighter">Convidar Familiar.</h3>
+                   <p className="text-slate-500 text-[10px] font-medium uppercase tracking-widest">Sincronia familiar via ECOBR232</p>
+                   
+                   <form onSubmit={handleInvite} className="space-y-4">
+                      <input 
+                        type="email" 
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        placeholder="E-mail do marido/esposa..."
+                        className="w-full h-14 px-6 bg-white/5 border border-white/10 rounded-2xl text-sm focus:outline-none focus:border-primary/50"
+                      />
+                      <button className="w-full h-14 bg-primary text-black rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl">
+                         Enviar Convite
+                      </button>
+                   </form>
+                </div>
+              </motion.div>
+           </div>
+         )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+
+
+export default MnemeList;

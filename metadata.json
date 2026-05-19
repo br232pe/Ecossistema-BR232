@@ -1,6 +1,6 @@
 {
-  "name": "Ecossistema BR-232",
-  "description": "Meta-portal de serviços, classificados e anúncios comerciais na região da rodovia BR-232 em Pernambuco.",
+  "name": "ECOBR232",
+  "description": "Portal da Malha Geoeconômica da BR-232 em Pernambuco. Serviços, classificados e inteligência regional.",
   "requestFramePermissions": [
     "geolocation",
     "camera"

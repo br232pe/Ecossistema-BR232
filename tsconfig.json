@@ -14,7 +14,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "types": ["vite/client", "google.maps", "node"]
   },
   "include": ["src", "pages", "App.tsx", "index.tsx"]
 }
