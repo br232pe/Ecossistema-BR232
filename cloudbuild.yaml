@@ -4,17 +4,12 @@ steps:
     args:
       - '-c'
       - |
-        gcloud run services update ecossistema-br232 \
-          --region us-west1 \
-          --platform managed \
-          --remove-annotations=run.googleapis.com/sources \
-          --quiet || true
-
         gcloud run deploy ecossistema-br232 \
           --source . \
           --region us-west1 \
           --platform managed \
           --allow-unauthenticated \
+          --clear-labels \
           --quiet
 
 options:
