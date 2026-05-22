@@ -38,7 +38,7 @@ const DashboardAssociacao: React.FC = () => {
       if (!snapshot.empty) {
         setAssociation({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() });
         
-        // Buscar membros desta associação
+        // Buscar operadores credenciados desta associação
         const membersRef = collection(db, `associations/${snapshot.docs[0].id}/members`);
         const unsubscribeMembers = onSnapshot(membersRef, (memberSnap) => {
           const membersList = memberSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -131,7 +131,7 @@ const DashboardAssociacao: React.FC = () => {
            <MetricCard 
              label="Força de Associação" 
              value={members.length} 
-             sub="Membros Ativos" 
+             sub="Operadores Credenciados" 
              icon={<Users size={20} />} 
              trend="LTS"
            />
@@ -149,7 +149,7 @@ const DashboardAssociacao: React.FC = () => {
            <TabButton 
              active={activeTab === 'members'} 
              onClick={() => setActiveTab('members')} 
-             label="Membros" 
+             label="Credenciados" 
              count={members.length} 
            />
            <TabButton 
@@ -180,7 +180,7 @@ const DashboardAssociacao: React.FC = () => {
                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                    <input 
                      type="text" 
-                     placeholder="Buscar membro por nome ou KM..."
+                     placeholder="Buscar credenciado por nome ou KM..."
                      className="w-full h-12 bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 text-xs font-medium focus:border-primary/50 outline-none transition-all"
                    />
                 </div>
@@ -199,7 +199,7 @@ const DashboardAssociacao: React.FC = () => {
                     <div className="size-16 bg-white/5 rounded-full flex items-center justify-center mx-auto">
                        <AlertCircle size={32} className="text-slate-700" />
                     </div>
-                    <p className="text-slate-500 text-sm italic">Nenhum membro vinculado a esta associação ainda.</p>
+                    <p className="text-slate-500 text-sm italic">Nenhum operador credenciado vinculado a esta associação ainda.</p>
                   </div>
                 )}
               </div>
@@ -275,10 +275,10 @@ const MemberRow = ({ member }: any) => (
   <div className="p-5 bg-white/5 border border-white/10 rounded-3xl group hover:bg-white/10 transition-all flex items-center justify-between gap-6">
     <div className="flex items-center gap-5">
       <div className="size-12 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center overflow-hidden">
-        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.uid}`} className="size-full object-cover" alt="Membro" />
+        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.uid}`} className="size-full object-cover" alt="Operador Credenciado" />
       </div>
       <div>
-        <h5 className="text-sm font-black italic uppercase tracking-tight">{member.displayName || 'Membro Elite'}</h5>
+        <h5 className="text-sm font-black italic uppercase tracking-tight">{member.displayName || 'Operador Credenciado'}</h5>
         <div className="flex items-center gap-3 mt-0.5">
           <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
             <Activity size={8} /> IP: {member.ip || '--'}%

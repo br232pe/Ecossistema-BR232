@@ -168,6 +168,43 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["authorId", "authorName", "title", "content", "status"]
+    },
+    "MnemeList": {
+      "title": "Mneme List",
+      "description": "A smart shopping list",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "authorizedUsers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "supermarketName": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "archived"] },
+        "totalSpent": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ownerId", "authorizedUsers"]
+    },
+    "MnemeItem": {
+      "title": "Mneme Item",
+      "description": "An item belonging to a smart shopping list",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "listId": { "type": "string" },
+        "name": { "type": "string" },
+        "quantity": { "type": "string" },
+        "category": { "type": "string" },
+        "isCompleted": { "type": "boolean" },
+        "price": { "type": "number" },
+        "addedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["listId", "name", "isCompleted", "addedBy"]
     }
   },
   "firestore": {
@@ -238,6 +275,14 @@
         }
       },
       "description": "System configuration for plans and associations"
+    },
+    "mneme_lists/{listId}": {
+      "schema": "MnemeList",
+      "description": "Smart shopping lists representing family groceries/supplies"
+    },
+    "mneme_items/{itemId}": {
+      "schema": "MnemeItem",
+      "description": "Items in smart shopping lists"
     }
   }
 }

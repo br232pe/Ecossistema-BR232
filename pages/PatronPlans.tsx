@@ -32,7 +32,7 @@ const PatronPlans: React.FC = () => {
       influence: '15km',
       cycle: 'Anual',
       features: [
-        'Selo de Identidade Validada',
+        'Validação de Checkpoint de Identidade',
         'Página Comercial Estável (PF/PJ)',
         'Localização Exata no Radar',
         'Bio e Links de Contato',
@@ -110,7 +110,7 @@ const PatronPlans: React.FC = () => {
               className={`px-8 py-4 rounded-2xl flex items-center gap-3 transition-all duration-500 ${nature === 'PF' ? 'bg-primary text-black' : 'text-slate-500 hover:text-white'}`}
             >
               <Briefcase size={18} />
-              <span className="text-[11px] font-black uppercase tracking-widest italic">Vocação PF</span>
+              <span className="text-[11px] font-black uppercase tracking-widest italic">Segmento PF</span>
             </button>
             <button 
               onClick={() => setNature('PJ')}

@@ -15,6 +15,7 @@ import { APIProvider } from '@vis.gl/react-google-maps';
 
 // Componente de Blindagem
 import ErrorBoundary from './components/ErrorBoundary';
+import { SafetyGuardOverlay } from './src/components/SafetyGuard';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
@@ -87,7 +88,7 @@ const AppContent: React.FC = () => {
     <Router>
       <ScrollToTop />
       <div className="min-h-screen bg-[#050d09] text-white font-display selection:bg-primary selection:text-black leading-relaxed">
-        <SafetyGuard />
+        <SafetyGuardOverlay />
         <Layout auth={isAuthenticated}>
           <Suspense fallback={<LoadingScreen />}>
             <Routes>
@@ -169,45 +170,6 @@ const LoadingScreen = () => (
   </div>
 );
 
-const SafetyGuard: React.FC = () => {
-  const [speedAlert, setSpeedAlert] = useState(false);
-  
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
-    
-    let watchId: number;
-    try {
-      watchId = navigator.geolocation.watchPosition(
-        (pos) => { 
-          const speed = pos.coords.speed || 0;
-          if (speed > 15) setSpeedAlert(true); 
-          else setSpeedAlert(false); 
-        },
-        () => {
-          // Ignoramos erros de permissão ou timeout para não travar a aplicação
-        }, 
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 5000 }
-      );
-    } catch (e) {
-      console.warn('SafetyGuard Geolocation failed to initialize');
-    }
-    
-    return () => {
-      if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
-    };
-  }, []);
-
-  if (!speedAlert) return null;
-  return (
-    <div className="fixed inset-0 z-[10000] bg-red-600 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
-      <span className="material-symbols-outlined text-[120px] text-white mb-6 filled">front_hand</span>
-      <h2 className="text-white text-3xl font-black mb-4 italic uppercase">Vixe! Tá correndo é?</h2>
-      <p className="text-white/90 text-lg font-bold mb-8">Pare o carro num lugar seguro pra usar o app!</p>
-      <button onClick={() => setSpeedAlert(false)} className="px-8 py-4 bg-white text-red-600 rounded-2xl font-black uppercase shadow-2xl active:scale-95 transition-transform">Já parei!</button>
-    </div>
-  );
-};
-
 const Layout: React.FC<{ children: React.ReactNode, auth: boolean }> = ({ children, auth }) => {
   return (
     <div className="flex flex-col min-h-screen relative overflow-x-hidden">
@@ -254,7 +216,7 @@ const BottomNav: React.FC<{ auth: boolean }> = ({ auth }) => {
            </Link>
         </div>
 
-        <NavItem to="/fidelidade" icon="confirmation_number" label="Porta-luvas" active={location.pathname === '/fidelidade'} />
+        <NavItem to="/fidelidade" icon="confirmation_number" label="FIEL" active={location.pathname === '/fidelidade'} />
         <NavItem 
           to={auth ? "/perfil" : "/login"} 
           icon={auth ? "account_circle" : "person"} 

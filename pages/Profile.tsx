@@ -53,50 +53,50 @@ const Profile: React.FC = () => {
          <div className="mt-8 text-center space-y-2">
             <h1 className="text-3xl font-black italic uppercase italic tracking-tighter leading-none">{user?.displayName || 'Motorista Anônimo'}</h1>
             <div className="flex items-center justify-center gap-2 mt-2">
-               {profile.identities.isPatron && <span className="text-[7px] font-black uppercase px-2 py-0.5 bg-primary/20 text-primary border border-primary/20 rounded-full italic">Patrono</span>}
-               {profile.identities.isDriver && <span className="text-[7px] font-black uppercase px-2 py-0.5 bg-primary/20 text-primary border border-primary/20 rounded-full italic">Elite</span>}
-               <span className="text-[7px] font-black uppercase px-2 py-0.5 bg-white/10 text-slate-400 border border-white/10 rounded-full italic">{profile.currentCity}</span>
+               {profile.identities?.isPatron && <span className="text-[7px] font-black uppercase px-2 py-0.5 bg-primary/20 text-primary border border-primary/20 rounded-full italic">Patrono</span>}
+               {profile.identities?.isDriver && <span className="text-[7px] font-black uppercase px-2 py-0.5 bg-primary/20 text-primary border border-primary/20 rounded-full italic">Elite</span>}
+               <span className="text-[7px] font-black uppercase px-2 py-0.5 bg-white/10 text-slate-400 border border-white/10 rounded-full italic">{profile.currentCity || 'Recife'}</span>
             </div>
          </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 -mt-10 space-y-10 relative z-20">
         
-        {/* IP Breakdown - Cânone */}
-        <section className="bg-gradient-to-br from-[#0c1a14] to-[#05100a] rounded-[2.5rem] border border-primary/20 p-8 shadow-2xl relative overflow-hidden group">
-           <div className="relative z-10 space-y-8">
-              <div className="flex items-center justify-between">
-                 <h2 className="text-xs font-black uppercase tracking-[0.4em] italic text-primary">Índice de Pertencimento</h2>
-                 <span className="text-4xl font-black italic uppercase italic leading-none">{profile.stats.ip.toFixed(1)}%</span>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                 <div className="p-5 bg-white/5 border border-white/10 rounded-2xl space-y-2">
-                    <div className="flex items-center justify-between text-slate-500">
-                       <TrendingUp size={14} />
-                       <span className="text-[8px] font-black uppercase tracking-widest">65%</span>
-                    </div>
-                    <div className="text-xl font-black italic leading-none">{profile.stats.merit.toFixed(1)}%</div>
-                    <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Mérito Indiv.</div>
-                 </div>
-                 <div className="p-5 bg-white/5 border border-white/10 rounded-2xl space-y-2">
-                    <div className="flex items-center justify-between text-slate-500">
-                       <ShieldCheck size={14} />
-                       <span className="text-[8px] font-black uppercase tracking-widest">35%</span>
-                    </div>
-                    <div className="text-xl font-black italic leading-none">{profile.stats.associationForce.toFixed(1)}%</div>
-                    <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Força Assoc.</div>
-                 </div>
-              </div>
+         {/* IP Breakdown - Diretriz Geoeconômica e Auditoria de Identidade */}
+         <section className="bg-gradient-to-br from-[#0c1a14] to-[#05100a] rounded-[2.5rem] border border-primary/20 p-8 shadow-2xl relative overflow-hidden group">
+            <div className="relative z-10 space-y-8">
+               <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-black uppercase tracking-[0.4em] italic text-primary">Índice de Pertencimento</h2>
+                  <span className="text-4xl font-black italic uppercase italic leading-none">{(profile.stats?.ip ?? 0).toFixed(1)}%</span>
+               </div>
+               
+               <div className="grid grid-cols-2 gap-4">
+                  <div className="p-5 bg-white/5 border border-white/10 rounded-2xl space-y-2">
+                     <div className="flex items-center justify-between text-slate-500">
+                        <TrendingUp size={14} />
+                        <span className="text-[8px] font-black uppercase tracking-widest">65%</span>
+                     </div>
+                     <div className="text-xl font-black italic leading-none">{(profile.stats?.merit ?? 0).toFixed(1)}%</div>
+                     <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Mérito Indiv.</div>
+                  </div>
+                  <div className="p-5 bg-white/5 border border-white/10 rounded-2xl space-y-2">
+                     <div className="flex items-center justify-between text-slate-500">
+                        <ShieldCheck size={14} />
+                        <span className="text-[8px] font-black uppercase tracking-widest">35%</span>
+                     </div>
+                     <div className="text-xl font-black italic leading-none">{(profile.stats?.associationForce ?? 0).toFixed(1)}%</div>
+                     <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Força Assoc.</div>
+                  </div>
+               </div>
 
-              <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                 <motion.div 
-                   initial={{ width: 0 }}
-                   animate={{ width: `${profile.stats.ip}%` }}
-                   className="h-full bg-primary"
-                 />
-              </div>
-           </div>
+               <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${profile.stats?.ip ?? 0}%` }}
+                    className="h-full bg-primary"
+                  />
+               </div>
+            </div>
            
            <div className="absolute top-0 right-0 size-64 bg-primary/5 blur-[80px] pointer-events-none"></div>
         </section>
@@ -113,7 +113,7 @@ const Profile: React.FC = () => {
              onClick={() => navigate('/porta-luvas')}
              icon={<ShoppingBag size={20}/>} 
              label="Porta-Luvas Digital" 
-             desc="Resgate selos e KMs de Influência" 
+             desc="Resgate tickets de parada e KMs de Influência" 
            />
            <MenuButton 
              onClick={() => navigate('/registro')}

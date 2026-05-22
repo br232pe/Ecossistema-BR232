@@ -46,7 +46,7 @@ const MnemeDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    const unsubscribe = mnemeService.subscribeToLists(user.uid, (data) => {
+    const unsubscribe = mnemeService.subscribeToLists(user.uid, user.email, (data: MnemeList[]) => {
       setLists(data);
       setIsLoading(false);
     });

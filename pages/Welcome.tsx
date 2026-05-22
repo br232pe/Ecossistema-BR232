@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -17,6 +17,7 @@ import {
   Truck,
   Users,
   ChevronRight,
+  ChevronLeft,
   Bike,
   Star,
   Activity,
@@ -30,6 +31,22 @@ import SinapseBackground from '../src/components/SinapseBackground';
 const Welcome: React.FC = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (carouselRef.current) {
+      const { scrollLeft, clientWidth } = carouselRef.current;
+      const scrollAmount = clientWidth < 640 ? 300 : clientWidth * 0.6;
+      const scrollTo = direction === 'left' 
+        ? scrollLeft - scrollAmount 
+        : scrollLeft + scrollAmount;
+      
+      carouselRef.current.scrollTo({
+        left: scrollTo,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-[#05100a] text-white overflow-x-hidden selection:bg-primary selection:text-black font-sans">
@@ -44,7 +61,7 @@ const Welcome: React.FC = () => {
         
         {/* Header Nav */}
         <header className="flex items-center justify-between mb-20 sm:mb-28">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 cursor-pointer select-none active:opacity-80 transition-opacity" onClick={() => navigate('/')}>
             <div className="size-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-2 backdrop-blur-xl shrink-0">
                <img 
                  src="https://firebasestorage.googleapis.com/v0/b/ecossistema-br232.firebasestorage.app/o/Logo-BR232-8.png?alt=media&token=799984b2-18f5-4440-a1c2-a2f0f38c6d0c" 
@@ -172,14 +189,14 @@ const Welcome: React.FC = () => {
                </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-12 items-end">
-              <div className="space-y-8">
-                <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed italic border-l-4 border-primary pl-6">
-                  Do <span className="text-white font-black underline decoration-primary decoration-4 underline-offset-4">Cais ao Sertão</span>. 
-                  Conectando residentes, donas de casa e viajantes através da BR-232 com inteligência geolocalizada.
-                </p>
+            <div className="space-y-8">
+              <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed italic border-l-4 border-primary pl-6">
+                Do <span className="text-white font-black underline decoration-primary decoration-4 underline-offset-4">Cais ao Sertão</span>. 
+                Conectando residentes, donas de casa e viajantes através da BR-232 com inteligência geolocalizada.
+              </p>
 
-                <div className="flex flex-wrap gap-4">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 lg:gap-8">
+                <div className="flex flex-row flex-wrap sm:flex-nowrap gap-4 shrink-0">
                   <button 
                     onClick={() => navigate('/portal')}
                     className="h-16 px-10 bg-primary hover:bg-[#00c865] text-black rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-4 transition-all shadow-[0_20px_50px_rgba(0,230,118,0.2)] active:scale-95 group"
@@ -193,16 +210,16 @@ const Welcome: React.FC = () => {
                     Acessar Mnēmē <ShoppingCart size={18} />
                   </button>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="h-20 px-8 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md flex flex-col justify-center group hover:border-primary/40 transition-colors">
-                   <div className="text-2xl font-black italic text-primary leading-none group-hover:scale-110 transition-transform origin-left">500+</div>
-                   <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">KM Cobertos</div>
-                </div>
-                <div className="h-20 px-8 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md flex flex-col justify-center group hover:border-primary/40 transition-colors">
-                   <div className="text-2xl font-black italic text-primary leading-none group-hover:scale-110 transition-transform origin-left">24h</div>
-                   <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Operação</div>
+                <div className="grid grid-cols-2 gap-4 lg:flex lg:flex-row lg:gap-4 lg:flex-1">
+                  <div className="h-20 lg:h-16 px-8 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md flex flex-col justify-center group hover:border-primary/40 transition-colors lg:flex-1 lg:min-w-[150px]">
+                     <div className="text-2xl font-black italic text-primary leading-none group-hover:scale-110 transition-transform origin-left">500+</div>
+                     <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">KM Cobertos</div>
+                  </div>
+                  <div className="h-20 lg:h-16 px-8 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md flex flex-col justify-center group hover:border-primary/40 transition-colors lg:flex-1 lg:min-w-[150px]">
+                     <div className="text-2xl font-black italic text-primary leading-none group-hover:scale-110 transition-transform origin-left">24h</div>
+                     <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Operação</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -223,20 +240,23 @@ const Welcome: React.FC = () => {
               tag="Marketplace"
               desc="Digitalização de negócios lindeiros. Onde o comércio local encontra visibilidade global."
               color="#00e676"
+              onClick={() => navigate('/classificados')}
             />
             <ModuleCard 
               icon={<ShoppingCart />} 
               title="Mnēmē" 
               tag="Gestão"
-              desc="Lista de compras inteligente e gestão de memória integrada ao ecossistema regional."
+              desc="Lista de compras inteligente e gestão de suprimentos integrada ao ecossistema regional."
               color="#ff751f"
+              onClick={() => navigate('/mneme')}
             />
             <ModuleCard 
               icon={<Wallet />} 
               title="Porta-luvas" 
               tag="Fidelidade"
-              desc="Sistema de selos digitais e fidelidade com validação via QR Code e Geofencing."
+              desc="Sistema de tickets de parada e fidelidade com validação via QR Code e Geofencing."
               color="#00e676"
+              onClick={() => navigate('/fidelidade')}
             />
             <ModuleCard 
               icon={<Truck />} 
@@ -244,6 +264,7 @@ const Welcome: React.FC = () => {
               tag="Logística"
               desc="Conexão direta com moto-taxistas e associações de transporte em toda a rede."
               color="#ff751f"
+              onClick={() => navigate('/moto-taxi')}
             />
           </div>
         </section>
@@ -281,11 +302,11 @@ const Welcome: React.FC = () => {
                    <Globe size={48} />
                 </div>
                 <div className="space-y-3">
-                   <h3 className="text-3xl sm:text-[2.5rem] font-black italic uppercase leading-tight tracking-tighter">Vida das <br/><span className="text-primary">Vidas</span></h3>
+                   <h3 className="text-3xl sm:text-[2.5rem] font-black italic uppercase leading-tight tracking-tighter">Vida nas <br/><span className="text-primary">Cidades</span></h3>
                    <p className="text-slate-400 font-medium italic text-lg leading-relaxed max-w-sm">Infraestrutura operacional e serviços de proximidade para o dia a dia.</p>
                 </div>
                 <div className="inline-flex items-center gap-3 text-xs font-black uppercase tracking-[0.2em] text-primary group-hover:translate-x-2 transition-transform">
-                   Acessar Vida das Vidas <ArrowRight size={16} strokeWidth={3} />
+                   Acessar Vida nas Cidades <ArrowRight size={16} strokeWidth={3} />
                 </div>
              </div>
           </motion.div>
@@ -335,14 +356,29 @@ const Welcome: React.FC = () => {
                     </div>
                  </div>
                  
-                 <button className="w-full py-4 bg-white/5 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-black transition-all">
+                 <button 
+                    onClick={() => navigate('/classificados')}
+                    className="w-full py-4 bg-white/5 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-black transition-all"
+                 >
                     Customizar Radar
                  </button>
               </div>
 
               {/* O Carrossel de Destaques Magnéticos */}
-              <div className="lg:col-span-3 min-h-[400px]">
-                 <div className="flex gap-6 overflow-x-auto pb-12 snap-x snap-mandatory no-scrollbar scroll-smooth">
+              <div className="lg:col-span-3 min-h-[400px] relative group/carousel">
+                 {/* Floating Left Button */}
+                 <button 
+                    onClick={() => scroll('left')}
+                    className="absolute left-2 sm:-left-6 top-1/2 -translate-y-1/2 z-20 size-12 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-primary hover:bg-primary hover:text-black transition-all shadow-xl active:scale-90 opacity-90 sm:opacity-0 group-hover/carousel:opacity-100 focus:opacity-100 lg:hidden"
+                    aria-label="Anterior"
+                 >
+                    <ChevronLeft size={24} />
+                 </button>
+
+                 <div 
+                    ref={carouselRef}
+                    className="flex lg:grid lg:grid-cols-2 xl:grid-cols-4 gap-6 overflow-x-auto lg:overflow-visible pb-12 lg:pb-0 snap-x snap-mandatory no-scrollbar scroll-smooth"
+                 >
                     {[
                       { 
                         title: "Reserva das Palmeiras", 
@@ -372,12 +408,12 @@ const Welcome: React.FC = () => {
                         isPatrono: false
                       },
                       { 
-                        title: "Gado de Corte Nelore", 
-                        price: "Preço do Dia", 
+                        title: "Alteza Stilettos", 
+                        price: "A partir de R$ 380", 
                         loc: "Pesqueira (Km 215)", 
                         img: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=600",
-                        tag: "Agro",
-                        vibe: "Cotidiano",
+                        tag: "Moda",
+                        vibe: "Premium",
                         isPatrono: true
                       }
                     ].map((ad, i) => (
@@ -385,7 +421,7 @@ const Welcome: React.FC = () => {
                          key={i}
                          whileHover={{ scale: 0.98, y: -5 }}
                          onClick={() => navigate('/classificados')}
-                         className="min-w-[280px] sm:min-w-[340px] aspect-[4/5] bg-[#0a1811] rounded-[2.5rem] overflow-hidden border border-white/5 snap-center relative cursor-pointer group shadow-2xl"
+                         className="min-w-[280px] sm:min-w-[340px] lg:min-w-0 w-full aspect-[4/5] bg-[#0a1811] rounded-[2.5rem] overflow-hidden border border-white/5 snap-center relative cursor-pointer group shadow-2xl"
                        >
                           <img src={ad.img} className="absolute inset-0 w-full h-full object-cover brightness-50 group-hover:brightness-90 transition-all duration-1000 group-hover:scale-110" alt={ad.title} />
                           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
@@ -395,7 +431,7 @@ const Welcome: React.FC = () => {
                                 {ad.tag}
                              </span>
                              <span className="px-3 py-1 bg-white/10 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-lg w-fit">
-                                Vibe: {ad.vibe}
+                                Classificação: {ad.vibe}
                              </span>
                           </div>
 
@@ -423,7 +459,16 @@ const Welcome: React.FC = () => {
                           </div>
                        </motion.div>
                     ))}
-                 </div>
+                  </div>
+
+                  {/* Floating Right Button */}
+                  <button 
+                     onClick={() => scroll('right')}
+                     className="absolute right-2 sm:-right-6 top-1/2 -translate-y-1/2 z-20 size-12 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-primary hover:bg-primary hover:text-black transition-all shadow-xl active:scale-90 opacity-90 sm:opacity-0 group-hover/carousel:opacity-100 focus:opacity-100 lg:hidden"
+                     aria-label="Próximo"
+                  >
+                     <ChevronRight size={24} />
+                  </button>
               </div>
            </div>
         </section>
@@ -564,7 +609,10 @@ const Welcome: React.FC = () => {
               </div>
 
               <div className="pt-4">
-                 <button className="px-8 py-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-black uppercase text-xs transition-all flex items-center gap-4 group">
+                 <button 
+                    onClick={() => navigate('/moto-taxi')}
+                    className="px-8 py-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-black uppercase text-xs transition-all flex items-center gap-4 group"
+                 >
                     Ver Ranking de Mérito <ChevronRight size={18} className="text-primary group-hover:translate-x-2 transition-transform" />
                  </button>
               </div>
@@ -572,7 +620,7 @@ const Welcome: React.FC = () => {
           </div>
         </section>
 
-        {/* Association Force Section - O Cânone do Pertencimento Coletivo */}
+        {/* Association Force Section - A Diretriz Geoeconômica de Interação Coletiva */}
         <section className="mb-32">
           <div className="flex flex-col md:flex-row items-end justify-between mb-16 gap-8">
             <div className="max-w-2xl space-y-4">
@@ -591,7 +639,7 @@ const Welcome: React.FC = () => {
                </div>
                <div className="w-px h-10 bg-white/10"></div>
                <div className="px-4">
-                 <p className="text-[9px] font-medium italic leading-tight">Métrica auditada que bonifica membros de associações verificadas.</p>
+                 <p className="text-[9px] font-medium italic leading-tight">Métrica auditada que bonifica credenciados de associações verificadas.</p>
                </div>
             </div>
           </div>
@@ -617,9 +665,14 @@ const Welcome: React.FC = () => {
                 </div>
                 <div className="space-y-2">
                   <h5 className="text-sm font-black uppercase italic">Sua Associação Aqui</h5>
-                  <p className="text-[10px] text-slate-500 font-medium italic px-6">Traga sua base para o Ecossistema e potencialize o IP dos seus membros.</p>
+                  <p className="text-[10px] text-slate-500 font-medium italic px-6">Traga sua base para o Ecossistema e potencialize o IP dos seus credenciados.</p>
                 </div>
-                <button className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">Iniciar Registro Único</button>
+                <button 
+                  onClick={() => navigate('/registro')}
+                  className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
+                >
+                  Iniciar Registro Único
+                </button>
              </div>
           </div>
         </section>
@@ -740,7 +793,7 @@ const AssociationCard = ({ name, city, members, ip, category }: any) => (
       <div className="grid grid-cols-2 gap-4">
         <div>
           <div className="text-xl font-black italic">{members}</div>
-          <div className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Membros Ativos</div>
+          <div className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Operadores Credenciados</div>
         </div>
         <div>
           <div className="text-xl font-black italic text-primary">{ip}%</div>
@@ -755,22 +808,26 @@ const AssociationCard = ({ name, city, members, ip, category }: any) => (
   </motion.div>
 );
 
-const ModuleCard = ({ icon, title, tag, desc, color }: any) => (
+const ModuleCard = ({ icon, title, tag, desc, color, onClick }: any) => (
   <motion.div 
     whileHover={{ y: -5 }}
-    className="p-8 bg-white/5 border border-white/10 rounded-[2rem] space-y-6 group hover:bg-white/10 transition-all cursor-default"
+    onClick={onClick}
+    className="p-8 bg-white/5 border border-white/10 rounded-[2rem] space-y-6 group hover:bg-white/10 transition-all cursor-pointer"
   >
     <div className="size-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-500" style={{ color }}>
       {React.cloneElement(icon, { size: 28 })}
     </div>
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h4 className="text-xl font-black italic uppercase italic leading-none">{title}</h4>
+        <h4 className="text-xl font-black italic uppercase leading-none">{title}</h4>
         <span className="text-[8px] font-black uppercase tracking-widest py-1 px-2 bg-white/5 rounded-full text-slate-500">{tag}</span>
       </div>
       <p className="text-xs text-slate-500 font-medium italic leading-relaxed">{desc}</p>
     </div>
-    <button className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-primary transition-colors">
+    <button 
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-primary transition-colors animate-pulse"
+    >
       Saiba Mais <ChevronRight size={12} />
     </button>
   </motion.div>

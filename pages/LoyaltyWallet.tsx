@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom';
 
 const LoyaltyWallet: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('Selo Ativo');
+  const [activeTab, setActiveTab] = useState('Checkpoint Ativo');
 
   const stamps = [
     { id: 1, name: 'Posto do Sertão', city: 'Arcoverde', points: 450, total: 1000, color: 'primary' },
@@ -35,7 +35,7 @@ const LoyaltyWallet: React.FC = () => {
          </div>
          <div className="space-y-1">
             <h1 className="text-4xl font-black italic uppercase italic tracking-tighter leading-none">Porta-Luvas <br/><span className="text-primary italic">Digital.</span></h1>
-            <p className="text-[10px] font-black italic uppercase tracking-[0.3em] text-slate-500">Gestão de Selos & Vantagens</p>
+            <p className="text-[10px] font-black italic uppercase tracking-[0.3em] text-slate-500">Gestão de Checkpoints & Conversões</p>
          </div>
       </header>
 
@@ -75,7 +75,7 @@ const LoyaltyWallet: React.FC = () => {
 
         {/* Tabs */}
         <div className="flex gap-8 border-b border-white/5 pb-4">
-           {['Selo Ativo', 'Finalizados'].map(tab => (
+           {['Checkpoint Ativo', 'Finalizados'].map(tab => (
              <button 
                key={tab}
                onClick={() => setActiveTab(tab)}
@@ -148,7 +148,7 @@ const LoyaltyWallet: React.FC = () => {
               </div>
               <div className="text-left">
                  <h3 className="text-2xl font-black italic uppercase italic leading-tight">Digitalize seu Negócio.</h3>
-                 <p className="text-slate-400 text-xs italic">Crie seu selo digital e fidelize viajantes da rodovia.</p>
+                 <p className="text-slate-400 text-xs italic">Crie seu checkpoint digital e fidelize viajantes da rodovia.</p>
               </div>
            </div>
            <button onClick={() => navigate('/patronos')} className="h-14 px-8 bg-white/5 group-hover:bg-primary border border-white/10 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all group-hover:text-black">

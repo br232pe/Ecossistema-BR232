@@ -242,7 +242,7 @@ const MultimodalRegistrationContent: React.FC = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Estimativa de Membros</label>
+                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Estimativa de Operadores Autorizados</label>
                       <input 
                         type="range" min="10" max="2000" step="10"
                         value={memberEstimate}
@@ -250,7 +250,7 @@ const MultimodalRegistrationContent: React.FC = () => {
                         className="w-full accent-primary bg-white/10 h-1.5 rounded-full appearance-none cursor-pointer"
                       />
                       <div className="flex justify-between items-center mt-2">
-                         <span className="text-xl font-black italic">{memberEstimate} <span className="text-[10px] uppercase text-slate-500">Membros</span></span>
+                         <span className="text-xl font-black italic">{memberEstimate} <span className="text-[10px] uppercase text-slate-500">Credenciados</span></span>
                       </div>
                     </div>
 

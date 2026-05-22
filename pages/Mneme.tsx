@@ -37,11 +37,17 @@ const Mneme: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribe = mnemeService.subscribeToLists(user.uid, (data: MnemeList[]) => {
+    // Gatilho de Autolimpeza (Garbage Collection) assíncrono e silencioso (background)
+    mnemeService.cleanupOldLists(user.uid).catch((err) => {
+      console.warn("Silent background cleanup warning:", err);
+    });
+
+    const unsubscribe = mnemeService.subscribeToLists(user.uid, user.email, (data: MnemeList[]) => {
       setLists(data);
       setIsLoading(false);
     });
@@ -64,11 +70,22 @@ const Mneme: React.FC = () => {
 
   const handleCreateList = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newListName.trim() || !user) return;
+    if (!newListName.trim() || !user || isSaving) return;
     
-    await mnemeService.createList(user.uid, newListName);
-    setNewListName('');
-    setIsCreating(false);
+    setIsSaving(true);
+    try {
+      const docRef = await mnemeService.createList(user.uid, newListName);
+      setNewListName('');
+      setIsSaving(false);
+      setIsCreating(false);
+      
+      if (docRef && docRef.id) {
+        navigate(`/mneme/lista/${docRef.id}`);
+      }
+    } catch (error) {
+      console.error("Erro ao criar lista:", error);
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -81,10 +98,10 @@ const Mneme: React.FC = () => {
             <div className="space-y-3">
                <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
                   <BrainCircuit size={12} className="text-primary animate-pulse" />
-                  <span className="text-[9px] font-black uppercase tracking-[0.4em] text-primary">Engenharia de Memória</span>
+                  <span className="text-[9px] font-black uppercase tracking-[0.4em] text-primary">Lista de Compras Inteligente</span>
                </div>
                <h1 className="text-4xl sm:text-6xl font-black italic uppercase italic tracking-tighter leading-none">Mnēmē.</h1>
-               <p className="text-slate-400 text-xs sm:text-sm font-medium italic max-w-md hidden sm:block">O cérebro digital da sua casa. Inteligência nutricional, auditoria de preços e sincronia familiar.</p>
+               <p className="text-slate-400 text-xs sm:text-sm font-medium italic max-w-md hidden sm:block">Criação prática de listas de compras integradas com inteligência nutricional, radar de preços e sincronia da casa.</p>
             </div>
             
             <div className="flex items-center gap-3">
@@ -104,7 +121,7 @@ const Mneme: React.FC = () => {
             </div>
          </div>
 
-         <p className="text-slate-400 text-xs font-medium italic sm:hidden relative z-10 px-0.5">O cérebro digital da sua casa. Inteligência nutricional e auditoria de preços.</p>
+         <p className="text-slate-400 text-xs font-medium italic sm:hidden relative z-10 px-0.5">Criação prática de listas de compras com inteligência nutricional, radar de preços e sincronia da casa.</p>
 
          {/* Mobile Menu Overlay */}
          <AnimatePresence>
@@ -148,39 +165,6 @@ const Mneme: React.FC = () => {
 
       <main className="max-w-6xl mx-auto px-6 space-y-12">
         
-        {/* Ad: Consultor de Gôndola */}
-        <section className="relative group cursor-pointer" onClick={() => navigate('/mneme/mercado')}>
-           <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/5 to-transparent blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
-           <div className="relative p-10 bg-white/5 border border-white/10 rounded-[3rem] flex flex-col md:flex-row justify-between items-center gap-8 group-hover:border-primary/30 transition-all overflow-hidden">
-              <div className="absolute top-0 right-0 p-12 text-white/5 -mr-12 -mt-12 group-hover:rotate-12 transition-transform duration-1000">
-                 <ShoppingCart size={240} />
-              </div>
-              
-              <div className="space-y-6 relative z-10 flex-1">
-                 <div className="space-y-2">
-                    <h3 className="text-3xl font-black italic uppercase italic tracking-tighter">Consultor de Gôndola</h3>
-                    <p className="text-slate-400 font-medium italic text-sm sm:text-base leading-relaxed">
-                       Economize em cada KM. O Mnēmē analisa os preços dos Patronos ECOBR232 em tempo real em toda a malha.
-                    </p>
-                 </div>
-                 <button className="h-14 px-8 bg-white/10 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:bg-primary hover:text-black transition-all">
-                    Acessar Auditoria <TrendingUp size={18} />
-                 </button>
-              </div>
-              
-              <div className="hidden lg:flex gap-4 relative z-10">
-                 <div className="p-4 bg-black/60 rounded-2xl border border-white/5 flex flex-col items-center">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Gravatá</span>
-                    <span className="text-lg font-black text-primary">-12%</span>
-                 </div>
-                 <div className="p-4 bg-black/60 rounded-2xl border border-white/5 flex flex-col items-center">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Caruaru</span>
-                    <span className="text-lg font-black text-primary">-18%</span>
-                 </div>
-              </div>
-           </div>
-        </section>
-
         {/* List Feed */}
         <section className="space-y-8">
            <div className="flex items-center justify-between">
@@ -189,7 +173,7 @@ const Mneme: React.FC = () => {
                    onClick={() => setActiveTab('active')}
                    className={`text-xs font-black uppercase tracking-[0.4em] italic transition-all ${activeTab === 'active' ? 'text-primary' : 'text-slate-600'}`}
                  >
-                    Central Ativa
+                    Listas Ativas
                  </button>
                  <button 
                    onClick={() => setActiveTab('history')}
@@ -240,7 +224,7 @@ const Mneme: React.FC = () => {
                              <div className="space-y-6 relative z-10">
                                 <div className="flex justify-between items-start">
                                    <div className="space-y-1">
-                                      <h4 className="text-2xl font-black italic uppercase italic tracking-tighter leading-none group-hover:text-primary transition-colors">{list.name}</h4>
+                                      <h4 className="text-2xl font-black italic uppercase tracking-tighter leading-none group-hover:text-primary transition-colors">{list.name}</h4>
                                       <div className="flex items-center gap-2 text-[10px] font-bold uppercase italic text-slate-500">
                                          <MapPin size={10} className="text-primary" />
                                          <span>{list.supermarketName || 'Multimarcas Regional'}</span>
@@ -280,16 +264,49 @@ const Mneme: React.FC = () => {
                           <LayoutGrid size={48} className="mx-auto text-slate-800" />
                           <div className="space-y-2">
                              <p className="text-slate-400 font-medium italic">
-                                {activeTab === 'active' ? 'Nenhuma gestão de memória ativa.' : 'Nenhum registro no histórico.'}
+                                {activeTab === 'active' ? 'Nenhuma lista de compras ativa no momento.' : 'Nenhum registro no histórico.'}
                              </p>
                              {activeTab === 'active' && (
-                                <button onClick={() => setIsCreating(true)} className="text-primary font-black uppercase text-[10px] tracking-widest">Cruzar a primeira Gôndola agora</button>
+                                <button onClick={() => setIsCreating(true)} className="text-primary font-black uppercase text-[10px] tracking-widest">Criar minha primeira lista</button>
                              )}
                           </div>
                        </div>
                     )
                  )}
               </AnimatePresence>
+           </div>
+        </section>
+
+        {/* Ad: Consultor de Gôndola */}
+        <section className="relative group cursor-pointer" onClick={() => navigate('/mneme/mercado')}>
+           <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/5 to-transparent blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+           <div className="relative p-10 bg-white/5 border border-white/10 rounded-[3rem] flex flex-col md:flex-row justify-between items-center gap-8 group-hover:border-primary/30 transition-all overflow-hidden">
+              <div className="absolute top-0 right-0 p-12 text-white/5 -mr-12 -mt-12 group-hover:rotate-12 transition-transform duration-1000">
+                 <ShoppingCart size={240} />
+              </div>
+              
+              <div className="space-y-6 relative z-10 flex-1">
+                 <div className="space-y-2">
+                    <h3 className="text-3xl font-black italic uppercase tracking-tighter">Consultor de Gôndola</h3>
+                    <p className="text-slate-400 font-medium italic text-sm sm:text-base leading-relaxed">
+                       Economize em cada KM. O Mnēmē compara os preços de estabelecimentos lindeiros na rodovia para indicar as melhores ofertas de mercado.
+                    </p>
+                 </div>
+                 <button className="h-14 px-8 bg-white/10 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:bg-primary hover:text-black transition-all">
+                    Consultar Preços <TrendingUp size={18} />
+                 </button>
+              </div>
+              
+              <div className="hidden lg:flex gap-4 relative z-10">
+                 <div className="p-4 bg-black/60 rounded-2xl border border-white/5 flex flex-col items-center">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Gravatá</span>
+                    <span className="text-lg font-black text-primary">-12%</span>
+                 </div>
+                 <div className="p-4 bg-black/60 rounded-2xl border border-white/5 flex flex-col items-center">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Caruaru</span>
+                    <span className="text-lg font-black text-primary">-18%</span>
+                 </div>
+              </div>
            </div>
         </section>
 
@@ -324,35 +341,48 @@ const Mneme: React.FC = () => {
                 className="relative w-full max-w-lg bg-[#0a1811] border border-white/10 p-12 rounded-[3.5rem] shadow-3xl space-y-10"
               >
                  <div className="space-y-2 text-center">
-                    <h3 className="text-4xl font-black italic uppercase italic tracking-tighter">Nova Auditoria.</h3>
-                    <p className="text-slate-500 text-sm italic font-medium">Nomeie sua próxima jornada de suprimentos.</p>
+                    <h3 className="text-4xl font-black italic uppercase italic tracking-tighter">Nova Lista.</h3>
+                    <p className="text-slate-500 text-sm italic font-medium">Dê um nome para a sua lista de compras.</p>
                  </div>
 
                  <form onSubmit={handleCreateList} className="space-y-6">
                     <div className="space-y-2">
-                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 italic ml-2">Identificação da Lista</label>
+                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 italic ml-2">Nome da Lista</label>
                        <input 
                          autoFocus
                          type="text" 
+                         disabled={isSaving}
                          value={newListName}
                          onChange={(e) => setNewListName(e.target.value)}
-                         placeholder="Ex: Rancho da Família @ Gravatá"
-                         className="w-full h-20 px-8 bg-white/5 border border-white/10 rounded-3xl text-xl font-black italic uppercase italic tracking-tight focus:outline-none focus:border-primary/50 transition-all transition-all"
+                         placeholder={isSaving ? "Sincronizando com a nuvem..." : "Ex: Compras da Semana ou Feira de Sábado"}
+                         className="w-full h-20 px-8 bg-white/5 border border-white/10 rounded-3xl text-xl font-black italic uppercase italic tracking-tight focus:outline-none focus:border-primary/50 transition-all disabled:opacity-50"
                        />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                        <button 
                          type="button" 
+                         disabled={isSaving}
                          onClick={() => setIsCreating(false)}
-                         className="h-16 rounded-2xl border border-white/10 font-black uppercase text-[10px] tracking-widest hover:bg-white/5 transition-all"
+                         className="h-16 rounded-2xl border border-white/10 font-black uppercase text-[10px] tracking-widest hover:bg-white/5 transition-all disabled:opacity-30"
                         >
                           Cancelar
                        </button>
                        <button 
                          type="submit" 
-                         className="h-16 rounded-2xl bg-primary text-black font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] shadow-2xl transition-all"
+                         disabled={isSaving || !newListName.trim()}
+                         className="h-16 rounded-2xl bg-primary text-black font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] shadow-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                          Criar Mnēmē
+                          {isSaving ? (
+                            <>
+                              <svg className="animate-spin h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              <span>Salvando...</span>
+                            </>
+                          ) : (
+                            "Criar Lista"
+                          )}
                        </button>
                     </div>
                  </form>

@@ -117,7 +117,7 @@ const RegisterPatronContent: React.FC = () => {
         <header className="space-y-4">
            <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
               <ShieldCheck size={12} className="text-primary" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Adesão ao Cânone</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Adesão à Diretriz Geoeconômica</span>
            </div>
            <h1 className="text-4xl font-black italic uppercase tracking-tighter">
              Tornar-se <span className="text-primary">Patrono</span>
@@ -209,7 +209,7 @@ const RegisterPatronContent: React.FC = () => {
                     {isValidating ? (
                       <>Validando Integridade <Loader2 size={16} className="animate-spin" /></>
                     ) : validationResult?.result.verdict.addressComplete ? (
-                      <>Endereço Qualificado pelo Cânone <CheckCircle2 size={16} /></>
+                      <>Endereço Qualificado pela Auditoria de Identidade <CheckCircle2 size={16} /></>
                     ) : (
                       <>Validar Endereço Comercial <ShieldCheck size={16} /></>
                     )}

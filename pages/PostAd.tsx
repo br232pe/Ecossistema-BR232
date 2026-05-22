@@ -91,7 +91,7 @@ const PostAd: React.FC = () => {
          <motion.div 
            initial={{ scale: 0 }}
            animate={{ scale: 1 }}
-           className="size-24 rounded-[2rem] bg-primary flex items-center justify-center text-black mb-8 shadow-[0_10px_40px_rgba(0,230,118,0.4)]"
+           style={{ willChange: "transform, opacity" }} className="size-24 rounded-[2rem] bg-primary flex items-center justify-center text-black mb-8 shadow-[0_10px_40px_rgba(0,230,118,0.4)]"
          >
             <CheckCircle2 size={48} />
          </motion.div>

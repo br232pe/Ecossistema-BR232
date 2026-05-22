@@ -61,7 +61,7 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
       {/* Header Stat Bar */}
       <header className="sticky top-0 z-50 bg-[#05100a]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 px-safe">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 cursor-pointer select-none active:opacity-80 transition-opacity" onClick={() => navigate('/portal')}>
             <div className="size-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center p-2 shadow-lg shrink-0">
                  <img 
                    src="https://firebasestorage.googleapis.com/v0/b/ecossistema-br232.firebasestorage.app/o/Logo-BR232-8.png?alt=media&token=799984b2-18f5-4440-a1c2-a2f0f38c6d0c" 
@@ -78,7 +78,7 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
           
           <div className="flex items-center gap-2 sm:gap-3">
              <nav className="hidden lg:flex items-center gap-6 mr-4">
-                <button onClick={() => navigate('/mneme')} className="text-[9px] font-black uppercase tracking-widest text-[#ff751f] hover:text-primary transition-colors italic px-2 py-1">Cesta</button>
+                 <button onClick={() => navigate('/mneme')} className="text-[9px] font-black uppercase tracking-widest text-[#ff751f] hover:text-primary transition-colors italic px-2 py-1">Cesta</button>
                 <button onClick={() => navigate('/guia-servicos')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic px-2 py-1">Serviços</button>
                 <button onClick={() => navigate('/planos')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic px-2 py-1">Planos</button>
                 <button onClick={() => navigate('/blog')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic px-2 py-1">Blog</button>
@@ -139,6 +139,7 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
                </div>
                
                <nav className="flex flex-col gap-6 w-full">
+
                   <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-[#ff751f]/10 border border-[#ff751f]/20 text-lg font-black uppercase tracking-[0.2em] italic text-[#ff751f]">Cesta Mnēmē</button>
                   <button onClick={() => { navigate('/guia-servicos'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Guia de Serviços</button>
                   <button onClick={() => { navigate('/planos'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Planos & Patronos</button>
@@ -236,6 +237,7 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
                desc="Veja operadores disponíveis para embarque imediato na BR-232." 
                tag="Agilidade"
                color="#ff751f"
+               onClick={() => navigate('/dashboard-viagens')}
             />
             <FeatureCard 
                icon={<Clock />} 
@@ -243,6 +245,7 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
                desc="Agende deslocamentos coletivos ou transporte de carga fracionada." 
                tag="Logística"
                color="#3b82f6"
+               onClick={() => navigate('/dashboard-viagens')}
             />
             <div className="hidden lg:block">
               <FeatureCard 
@@ -251,6 +254,7 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
                  desc="Operadores verificados e monitoramento por KM de Influência." 
                  tag="Protocolo"
                  color="#00e676"
+                 onClick={() => navigate('/fidelidade')}
               />
             </div>
           </div>
@@ -380,7 +384,10 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
             </div>
 
             {/* Publicidade / Marketplace Destaque */}
-            <div className="p-1 px-1 flex bg-white/5 border border-white/10 rounded-2xl sm:rounded-[2.5rem] overflow-hidden group/ad cursor-pointer">
+            <div 
+               onClick={() => navigate('/classificados')}
+               className="p-1 px-1 flex bg-white/5 border border-white/10 rounded-2xl sm:rounded-[2.5rem] overflow-hidden group/ad cursor-pointer hover:border-primary/30 transition-all"
+            >
                <div className="flex-1 p-6 sm:p-8 space-y-4">
                   <div className="flex items-center gap-2">
                     <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
@@ -462,8 +469,11 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
   );
 };
 
-const FeatureCard = ({ icon, title, desc, tag, color }: any) => (
-  <div className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-4 hover:bg-white/10 transition-all group">
+const FeatureCard = ({ icon, title, desc, tag, color, onClick }: any) => (
+  <div 
+    onClick={onClick}
+    className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-4 hover:bg-white/10 transition-all group cursor-pointer"
+  >
      <div className="flex items-center justify-between">
         <div className="size-10 rounded-xl flex items-center justify-center bg-white/5 group-hover:scale-110 transition-transform" style={{ color }}>
            {React.cloneElement(icon, { size: 22 })}

@@ -131,7 +131,7 @@ const AdminDashboard: React.FC = () => {
                        </thead>
                        <tbody className="text-xs font-medium italic divide-y divide-white/5">
                           <tr className="hover:bg-white/[0.02] transition-colors">
-                             <td className="px-10 py-6">Validou Selo Digital</td>
+                             <td className="px-10 py-6">Validou Checkpoint Digital</td>
                              <td className="px-10 py-6">@beto_rodas</td>
                              <td className="px-10 py-6">KM 142 (Arcoverde)</td>
                              <td className="px-10 py-6 text-primary">+1.2</td>

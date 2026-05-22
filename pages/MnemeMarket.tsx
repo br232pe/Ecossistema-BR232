@@ -43,7 +43,7 @@ const MnemeMarket: React.FC = () => {
                    </button>
                 </div>
                 <div className="px-4 py-1.5 bg-primary/10 border border-primary/20 rounded-full">
-                   <span className="text-[10px] font-black uppercase tracking-widest text-primary animate-pulse">Auditoria Ativa</span>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-primary animate-pulse">Radar de Preços</span>
                 </div>
              </div>
 

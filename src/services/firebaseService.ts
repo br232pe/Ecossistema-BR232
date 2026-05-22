@@ -9,7 +9,8 @@ import {
   where, 
   getDocs,
   orderBy,
-  limit
+  limit,
+  runTransaction
 } from 'firebase/firestore';
 import { db, auth } from '../contexts/AuthContext';
 import { Alert, Patron, Classified, UserProfile } from '../types';
@@ -158,6 +159,28 @@ export const firebaseService = {
       await deleteDoc(docRef);
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, path);
+    }
+  },
+
+  async registerAdInterestTransaction(adId: string) {
+    const path = `classifieds/${adId}`;
+    const docRef = doc(db, 'classifieds', adId);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const sfDoc = await transaction.get(docRef);
+        if (!sfDoc.exists()) {
+          throw new Error("O anúncio classificado não existe.");
+        }
+        const currentScore = sfDoc.data().trustScore || 85;
+        const newScore = Math.min(100, currentScore + 1);
+        transaction.update(docRef, { 
+          trustScore: newScore,
+          interestClicks: (sfDoc.data().interestClicks || 0) + 1,
+          updatedAt: serverTimestamp()
+        });
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, path);
     }
   }
 };

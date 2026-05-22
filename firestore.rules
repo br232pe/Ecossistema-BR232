@@ -81,6 +81,24 @@ service cloud.firestore {
         && data.createdAt == request.time;
     }
 
+    function isValidMnemeList(data) {
+      return data.keys().hasAll(['name', 'ownerId', 'authorizedUsers', 'createdAt', 'updatedAt'])
+        && data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() <= 150
+        && data.authorizedUsers is list && data.authorizedUsers.size() <= 50
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function isValidMnemeItem(data) {
+      return data.keys().hasAll(['listId', 'name', 'isCompleted', 'addedBy', 'createdAt'])
+        && data.listId is string
+        && data.name is string && data.name.size() <= 150
+        && data.isCompleted is bool
+        && data.addedBy == request.auth.uid
+        && data.createdAt == request.time;
+    }
+
     // --- Match Blocks ---
 
     match /users/{uid} {
@@ -165,6 +183,49 @@ service cloud.firestore {
         && (
           incoming().diff(existing()).affectedKeys().hasOnly(['weights', 'timeSpentSeconds', 'updatedAt']) ||
           incoming().diff(existing()).affectedKeys().hasOnly(['weights', 'status', 'completedAt', 'kmEarned', 'updatedAt'])
+        );
+    }
+
+    match /mneme_lists/{listId} {
+      allow read, list: if isSignedIn() && (request.auth.uid in resource.data.authorizedUsers || (request.auth.token.email != null && request.auth.token.email in resource.data.authorizedUsers));
+      allow create: if isSignedIn() && isValidMnemeList(incoming());
+      allow update: if isSignedIn()
+        && (request.auth.uid in existing().authorizedUsers || (request.auth.token.email != null && request.auth.token.email in existing().authorizedUsers))
+        && incoming().ownerId == existing().ownerId
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'supermarketName', 'supermarketLocation', 'status', 'totalSpent', 'archivedAt', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['authorizedUsers', 'updatedAt'])
+        )
+        && incoming().updatedAt == request.time;
+      allow delete: if isSignedIn() && request.auth.uid == existing().ownerId;
+    }
+
+    match /mneme_items/{itemId} {
+      allow read, list: if isSignedIn() && (
+        request.auth.uid in get(/databases/$(database)/documents/mneme_lists/$(resource.data.listId)).data.authorizedUsers ||
+        (request.auth.token.email != null && request.auth.token.email in get(/databases/$(database)/documents/mneme_lists/$(resource.data.listId)).data.authorizedUsers)
+      );
+      allow create: if isSignedIn()
+        && isValidMnemeItem(incoming())
+        && (
+          request.auth.uid in get(/databases/$(database)/documents/mneme_lists/$(incoming().listId)).data.authorizedUsers ||
+          (request.auth.token.email != null && request.auth.token.email in get(/databases/$(database)/documents/mneme_lists/$(incoming().listId)).data.authorizedUsers)
+        );
+      allow update: if isSignedIn()
+        && (
+          request.auth.uid in get(/databases/$(database)/documents/mneme_lists/$(existing().listId)).data.authorizedUsers ||
+          (request.auth.token.email != null && request.auth.token.email in get(/databases/$(database)/documents/mneme_lists/$(existing().listId)).data.authorizedUsers)
+        )
+        && incoming().listId == existing().listId
+        && incoming().addedBy == existing().addedBy
+        && incoming().createdAt == existing().createdAt
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['isCompleted', 'price', 'quantity', 'category', 'vibe', 'notes', 'nutriScore', 'brand', 'weightVolume', 'name'])
+        );
+      allow delete: if isSignedIn()
+        && (
+          request.auth.uid in get(/databases/$(database)/documents/mneme_lists/$(existing().listId)).data.authorizedUsers ||
+          (request.auth.token.email != null && request.auth.token.email in get(/databases/$(database)/documents/mneme_lists/$(existing().listId)).data.authorizedUsers)
         );
     }
 

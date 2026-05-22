@@ -8,7 +8,8 @@ import {
   getDocs, 
   serverTimestamp,
   orderBy,
-  limit
+  limit,
+  runTransaction
 } from 'firebase/firestore';
 import { db, auth } from '../contexts/AuthContext';
 import { LoyaltyTransaction, Patron } from '../types';
@@ -149,12 +150,53 @@ export const loyaltyService = {
 
     const path = `loyalty_transactions/${txId}`;
     try {
-      const txRef = doc(db, 'loyalty_transactions', txId);
-      return await updateDoc(txRef, {
-        'weights.conversion': true,
-        status: 'completed',
-        kmEarned: points,
-        completedAt: serverTimestamp()
+      await runTransaction(db, async (transaction) => {
+        const txRef = doc(db, 'loyalty_transactions', txId);
+        const txSnap = await transaction.get(txRef);
+        if (!txSnap.exists()) {
+          throw new Error("Sessão de fidelidade não encontrada.");
+        }
+        
+        const txData = txSnap.data() as LoyaltyTransaction;
+        if (txData.status !== 'pending') {
+          throw new Error("Esta transação já foi processada anteriormente.");
+        }
+
+        const userUid = txData.userId;
+        const userRef = doc(db, 'users', userUid);
+        const userSnap = await transaction.get(userRef);
+        
+        if (!userSnap.exists()) {
+          throw new Error("Usuário associado ao selo não encontrado.");
+        }
+
+        const userData = userSnap.data();
+        const currentStats = userData.stats || { ip: 0, merit: 0, associationForce: 0, totalKm: 0 };
+        
+        const newTotalKm = (currentStats.totalKm || 0) + points;
+        const incrementMerit = points * 0.2; // Ex: 5 pontos de compra conferem +1% de mérito
+        const newMerit = Math.min(100, (currentStats.merit || 0) + incrementMerit);
+        const newAssociationForce = currentStats.associationForce || 10;
+        const newIp = newMerit * 0.65 + newAssociationForce * 0.35;
+
+        // 1. Atualização Atômica da Transação de Fidelidade
+        transaction.update(txRef, {
+          'weights.conversion': true,
+          status: 'completed',
+          kmEarned: points,
+          completedAt: serverTimestamp()
+        });
+
+        // 2. Atualização Atômica das Estatísticas do Perfil de Usuário
+        transaction.update(userRef, {
+          stats: {
+            totalKm: newTotalKm,
+            merit: parseFloat(newMerit.toFixed(1)),
+            associationForce: parseFloat(newAssociationForce.toFixed(1)),
+            ip: parseFloat(newIp.toFixed(1))
+          },
+          updatedAt: serverTimestamp()
+        });
       });
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, path);

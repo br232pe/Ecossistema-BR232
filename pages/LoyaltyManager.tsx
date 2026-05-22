@@ -55,7 +55,7 @@ const LoyaltyManager: React.FC = () => {
       },
       (err) => {
         console.error("GPS Error:", err);
-        setGeoError("Acesso ao GPS negado ou sinal fraco. Ative para validar selos.");
+        setGeoError("Acesso ao GPS negado ou sinal fraco. Ative para registrar checkpoints.");
       },
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
@@ -173,7 +173,7 @@ const LoyaltyManager: React.FC = () => {
         nearbyPatron.loyaltyConfig?.dailyCode || '', 
         nearbyPatron.loyaltyConfig?.pointsPerPurchase || 0
       );
-      alert("✅ Selo Rubi Validado! +5 KMs de Influência.");
+      alert("✅ Checkpoint Rubi Confirmado! +5 KMs de Influência.");
       setActiveTx(null);
       setNearbyPatron(null);
       setTimer(0);
@@ -227,7 +227,7 @@ const LoyaltyManager: React.FC = () => {
                className="h-16 px-12 bg-primary text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all shadow-xl shadow-primary/20 disabled:opacity-30 flex items-center gap-3 mx-auto"
              >
                <QrCode size={20} />
-               Escanear Selo Agora
+               Ler QR Code do Checkpoint
              </button>
           </motion.div>
         )}
@@ -345,8 +345,8 @@ const LoyaltyManager: React.FC = () => {
         <section id="loyalty-card-visual" className="p-8 bg-white/5 border border-white/10 rounded-[3rem] space-y-8">
            <div className="flex items-center justify-between">
               <div className="space-y-1">
-                 <h3 className="text-xl font-black italic uppercase italic leading-none">Cartão de Carimbos</h3>
-                 <p className="text-[9px] font-bold text-primary uppercase tracking-widest leading-relaxed">Complete 10 selos para destravar o Benefício Elite</p>
+                 <h3 className="text-xl font-black italic uppercase italic leading-none">Registro de Rota</h3>
+                 <p className="text-[9px] font-bold text-primary uppercase tracking-widest leading-relaxed">Registre 10 checkpoints lindeiros para destravar o Benefício Elite</p>
               </div>
               <div className="text-right">
                  <span className="text-3xl font-black italic text-primary">{txs.length % 10}/10</span>
@@ -386,8 +386,8 @@ const LoyaltyManager: React.FC = () => {
         {/* Recent History / Selos Colecionados */}
         <section className="space-y-6">
            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-[0.3em] text-primary italic">Porta-Luvas (Selos Capturados)</h3>
-              <span className="text-[9px] font-black uppercase text-slate-500">{txs.length} Selos</span>
+              <h3 className="text-xs font-black uppercase tracking-[0.3em] text-primary italic">Porta-Luvas (Checkpoints Validados)</h3>
+              <span className="text-[9px] font-black uppercase text-slate-500">{txs.length} Checkpoints</span>
            </div>
            
            <div className="grid grid-cols-2 gap-4">
@@ -403,7 +403,7 @@ const LoyaltyManager: React.FC = () => {
                       <Star size={24} fill="currentColor" />
                    </div>
                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white">Selo Verificado</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white">Checkpoint Confirmado</p>
                       <p className="text-[8px] text-primary font-black uppercase mt-1 italic">+{tx.kmEarned} KMs de Influência</p>
                    </div>
                    <div className="pt-2 border-t border-white/5">
@@ -414,7 +414,7 @@ const LoyaltyManager: React.FC = () => {
               
               {txs.length === 0 && (
                 <div className="col-span-2 py-12 text-center border border-dashed border-white/10 rounded-[2rem]">
-                   <p className="text-[10px] font-black uppercase text-slate-600 tracking-widest">Nenhum selo capturado ainda.</p>
+                   <p className="text-[10px] font-black uppercase text-slate-600 tracking-widest">Nenhum checkpoint validado ainda.</p>
                 </div>
               )}
            </div>

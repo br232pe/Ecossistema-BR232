@@ -63,7 +63,7 @@ const DashboardUsuario: React.FC = () => {
       id: 'mneme',
       title: 'Mnēmē',
       tag: 'Gestão Inteligente',
-      desc: 'Organização de compras e memória doméstica.',
+      desc: 'Gestão de Suprimentos e Abastecimento Operacional.',
       icon: <ShoppingCart />,
       active: true,
       route: '/mneme',
@@ -73,7 +73,7 @@ const DashboardUsuario: React.FC = () => {
       id: 'fidelidade',
       title: 'Porta-Luvas',
       tag: 'Fidelidade',
-      desc: 'Seus selos, cupons e histórico de paragens.',
+      desc: 'Seus tickets de parada, cupons e histórico de paragens.',
       icon: <Wallet />,
       active: true,
       route: '/fidelidade',
@@ -103,7 +103,7 @@ const DashboardUsuario: React.FC = () => {
       id: 'associacao',
       title: 'Associação',
       tag: 'Gestão Core',
-      desc: 'Painel de gestão de membros e força de associação.',
+      desc: 'Painel de gestão de credenciados e força de associação.',
       icon: <Users size={30} />,
       active: identities.isAssociationManager,
       route: '/dashboard-associacao',
@@ -159,7 +159,7 @@ const DashboardUsuario: React.FC = () => {
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-10">
         
-        {/* Camada Superior: IP (O Cânone do Pertencimento) */}
+        {/* Camada Superior: IP (A Diretriz Geoeconômica e Auditoria de Identidade) */}
         <section className="relative">
           <div className="p-8 bg-gradient-to-br from-[#0c1a14] to-black rounded-[2.5rem] border border-primary/20 overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] -mr-32 -mt-32 rounded-full"></div>
@@ -192,7 +192,7 @@ const DashboardUsuario: React.FC = () => {
                  "O IP equilibra seu esforço individual com a força da união na bacia do KM {profile?.currentCity === 'Recife' ? '0' : '80'}."
                </p>
                <button onClick={() => navigate('/registro')} className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
-                 Explorar Vocação
+                 Explorar Segmento Comercial
                </button>
             </div>
           </div>

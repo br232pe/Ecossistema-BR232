@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "ecossistema-br232"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

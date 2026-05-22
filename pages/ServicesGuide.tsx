@@ -42,7 +42,7 @@ const ServicesGuide: React.FC = () => {
       tag: 'Gamificação',
       icon: <Ticket size={22} />,
       content: {
-        what: 'Sistema de selos digitais e recompensas por frequência na malha.',
+        what: 'Sistema de tickets de parada digitais e recompensas por frequência na malha.',
         where: 'Ícone central "Porta-Luvas" no menu inferior.',
         how: 'Valide sua presença via CDV (Código Dinâmico de Voz) ou Geofencing ao chegar em um parceiro.',
         benefits: ['KMs de Influência', 'Benefícios exclusivos em Patrons', 'Progressão de Nível (Titan, Factor, etc)'],

@@ -20,11 +20,13 @@ import {
   Calendar, 
   RefreshCcw,
   Search,
-  DollarSign
+  DollarSign,
+  Barcode
 } from 'lucide-react';
 import { mnemeService } from '../src/services/mnemeService';
 import { calendarService } from '../src/services/calendarService';
 import { SafetyGuardOverlay } from '../src/components/SafetyGuard';
+import { BarcodeScannerModal } from '../src/components/BarcodeScannerModal';
 import { MnemeList as MnemeListType, MnemeItem } from '../src/types';
 import { MNEME_CATALOG, CatalogItem, getCategoryIcon } from '../src/constants/mnemeCatalog';
 import { useAuth } from '../src/contexts/AuthContext'; 
@@ -41,6 +43,14 @@ const SECTIONS = [
   'Bebidas',
   'Mercearia',
   'Utilidades'
+];
+
+const PRESET_BRANDS = [
+  "Nestlé", "Sadia", "Seara", "Três Corações", "Omo", "Ypê", "Colgate", "Quaker", "Heinz", "Hellmann's", "Dona Benta", "Vitarella", "Santa Clara", "Pilão", "Itambé", "Piracanjuba"
+];
+
+const PRESET_WEIGHTS = [
+  "1 un", "2 un", "3 un", "4 un", "5 un", "6 un", "10 un", "100g", "200g", "250g", "500g", "1kg", "2kg", "5kg", "200ml", "350ml", "500ml", "1L", "1.5L", "2L"
 ];
 
 const MnemeList: React.FC = () => {
@@ -60,6 +70,7 @@ const MnemeList: React.FC = () => {
   const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
 
   // Catalog State
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,6 +87,37 @@ const MnemeList: React.FC = () => {
   const [editQuantity, setEditQuantity] = useState('');
   const [editCategory, setEditCategory] = useState(SECTIONS[0]);
 
+  // Quick Add State for Brand & Weight/Qty
+  const [selectedBrand, setSelectedBrand] = useState('');
+  const [customBrand, setCustomBrand] = useState('');
+  const [showCustomBrandInput, setShowCustomBrandInput] = useState(false);
+
+  const [selectedWeight, setSelectedWeight] = useState('1 un');
+  const [customWeight, setCustomWeight] = useState('');
+  const [showCustomWeightInput, setShowCustomWeightInput] = useState(false);
+
+  // Edit State for Brand & Weight
+  const [editBrand, setEditBrand] = useState('');
+  const [editCustomBrand, setEditCustomBrand] = useState('');
+  const [showEditCustomBrand, setShowEditCustomBrand] = useState(false);
+
+  const [editWeight, setEditWeight] = useState('');
+  const [editCustomWeight, setEditCustomWeight] = useState('');
+  const [showEditCustomWeight, setShowEditCustomWeight] = useState(false);
+
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   useEffect(() => {
     if (!id || !user) return;
 
@@ -84,7 +126,13 @@ const MnemeList: React.FC = () => {
       const docRef = doc(db, 'mneme_lists', id);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
-        setList({ id: snap.id, ...snap.data() } as MnemeListType);
+        const listData = { id: snap.id, ...snap.data() } as MnemeListType;
+        setList(listData);
+        
+        // Auto-join with UID if joined by email
+        if (user && listData.authorizedUsers.includes(user.email || '') && !listData.authorizedUsers.includes(user.uid)) {
+          await mnemeService.addAuthorizedUser(id, user.uid);
+        }
       }
     };
     fetchList();
@@ -126,12 +174,23 @@ const MnemeList: React.FC = () => {
     e.preventDefault();
     if (!newItemName.trim() || !id || !user) return;
 
+    const brand = showCustomBrandInput ? customBrand : selectedBrand;
+    const finalWeight = showCustomWeightInput ? customWeight : selectedWeight;
+
     await mnemeService.addItem(id, user.uid, {
       name: newItemName,
       category: selectedCategory,
-      quantity: '1'
+      quantity: finalWeight || '1 un',
+      brand: brand || '',
+      weightVolume: finalWeight || ''
     });
     setNewItemName('');
+    setCustomBrand('');
+    setSelectedBrand('');
+    setShowCustomBrandInput(false);
+    setCustomWeight('');
+    setSelectedWeight('1 un');
+    setShowCustomWeightInput(false);
     setSearchQuery('');
     setShowCatalog(false);
   };
@@ -142,11 +201,28 @@ const MnemeList: React.FC = () => {
       name: catalogItem.name,
       category: catalogItem.category,
       quantity: catalogItem.defaultUnit,
-      vibe: catalogItem.vibe
+      vibe: catalogItem.classification
     });
     setSearchQuery('');
     setNewItemName('');
     setShowCatalog(false);
+  };
+
+  const handleBarcodeItemAdded = async (item: {
+    name: string;
+    category: string;
+    quantity: string;
+    brand: string;
+    weightVolume: string;
+  }) => {
+    if (!id || !user) return;
+    await mnemeService.addItem(id, user.uid, {
+      name: item.name,
+      category: item.category,
+      quantity: item.quantity || '1 un',
+      brand: item.brand || '',
+      weightVolume: item.weightVolume || ''
+    });
   };
 
   const handleToggleItem = async (item: MnemeItem) => {
@@ -173,15 +249,45 @@ const MnemeList: React.FC = () => {
   const startEditing = (item: MnemeItem) => {
     setEditingItem(item);
     setEditName(item.name);
-    setEditQuantity(item.quantity || '1');
     setEditCategory(item.category || SECTIONS[0]);
+    
+    // Brand Config
+    if (item.brand) {
+      if (PRESET_BRANDS.includes(item.brand)) {
+        setEditBrand(item.brand);
+        setShowEditCustomBrand(false);
+      } else {
+        setEditBrand("CUSTOM");
+        setEditCustomBrand(item.brand);
+        setShowEditCustomBrand(true);
+      }
+    } else {
+      setEditBrand('');
+      setShowEditCustomBrand(false);
+    }
+
+    // Weight/Quantity Config
+    const w = item.weightVolume || item.quantity || '1 un';
+    if (PRESET_WEIGHTS.includes(w)) {
+      setEditWeight(w);
+      setShowEditCustomWeight(false);
+    } else {
+      setEditWeight("CUSTOM");
+      setEditCustomWeight(w);
+      setShowEditCustomWeight(true);
+    }
   };
 
   const saveEdit = async () => {
     if (!editingItem) return;
+    const finalBrand = showEditCustomBrand ? editCustomBrand : editBrand;
+    const finalWeight = showEditCustomWeight ? editCustomWeight : editWeight;
+
     await mnemeService.updateItem(editingItem.id, {
       name: editName,
-      quantity: editQuantity,
+      quantity: finalWeight || '1 un',
+      brand: finalBrand || '',
+      weightVolume: finalWeight || '',
       category: editCategory
     });
     setEditingItem(null);
@@ -190,7 +296,7 @@ const MnemeList: React.FC = () => {
   const finalizePurchase = async () => {
     if (!id) return;
     const total = items.reduce((sum, item) => sum + (item.price || 0), 0);
-    if (confirm(`Deseja finalizar esta auditoria? Total registrado: R$ ${total.toFixed(2)}`)) {
+    if (confirm(`Deseja finalizar esta compra e arquivar a lista? Total registrado: R$ ${total.toFixed(2)}`)) {
       await mnemeService.archiveList(id);
       // We could also store the totalSpent in the list metadata
       const listRef = doc(db, 'mneme_lists', id);
@@ -222,7 +328,7 @@ const MnemeList: React.FC = () => {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim() || !id) return;
-    await mnemeService.addMember(id, inviteEmail);
+    await mnemeService.grantAccess(id, inviteEmail);
     setInviteEmail('');
     setIsInviteOpen(false);
   };
@@ -257,7 +363,7 @@ const MnemeList: React.FC = () => {
     return acc;
   }, {} as Record<string, MnemeItem[]>);
 
-  if (!list) return <div className="min-h-screen bg-[#05100a] flex items-center justify-center">Carregando Auditoria...</div>;
+  if (!list) return <div className="min-h-screen bg-[#05100a] flex items-center justify-center">Carregando Lista de Compras...</div>;
 
   return (
     <div className="min-h-screen bg-[#05100a] text-white pb-40">
@@ -275,9 +381,15 @@ const MnemeList: React.FC = () => {
                </button>
                <div className="space-y-1 sm:space-y-2">
                   <h1 className="text-3xl sm:text-5xl font-black italic uppercase italic tracking-tighter leading-none group-hover:text-primary transition-colors">{list?.name || 'Carregando...'}</h1>
-                  <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-bold uppercase italic text-slate-500">
+                  <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-bold uppercase italic text-slate-500 flex-wrap">
                      <MapPin size={12} className="text-primary" />
                      <span>{list?.supermarketName || 'Multimarcas Regional'}</span>
+                     {!isOnline && (
+                        <span className="ml-2 flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/15 text-amber-500 border border-amber-500/30 rounded-full text-[8px] font-black uppercase tracking-widest leading-none">
+                           <span className="size-1 rounded-full bg-amber-500 animate-pulse" />
+                           Rede Oscilante (Cache)
+                        </span>
+                     )}
                   </div>
                </div>
             </div>
@@ -347,7 +459,7 @@ const MnemeList: React.FC = () => {
                     </button>
                     {items.length > 0 && items.some(i => i.isCompleted) && (
                        <button onClick={() => { finalizePurchase(); setIsMenuOpen(false); }} className="h-14 rounded-xl bg-primary text-black text-[10px] font-black uppercase tracking-widest shadow-xl">
-                          Finalizar Auditoria
+                          Finalizar Compra
                        </button>
                     )}
                  </div>
@@ -371,6 +483,17 @@ const MnemeList: React.FC = () => {
                  placeholder="Buscar no Catálogo Regional..."
                  className="flex-1 bg-transparent border-none text-sm font-bold placeholder:text-slate-600 focus:ring-0"
                />
+               
+               {/* CAMADA INCREMENTAL: SCANNER DE GÔNDOLA POR CÓDIGO DE BARRAS */}
+               <button
+                 type="button"
+                 onClick={() => setIsBarcodeOpen(true)}
+                 className="px-3.5 h-10 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/20 flex items-center justify-center gap-1.5 text-primary text-[10px] font-black uppercase tracking-wider transition-all active:scale-95"
+                 title="Escanear Código de Barras de Gôndola"
+               >
+                  <Barcode size={16} />
+                  <span className="hidden sm:inline">Escanear</span>
+               </button>
             </div>
 
             <AnimatePresence>
@@ -391,7 +514,7 @@ const MnemeList: React.FC = () => {
                             <span className="text-lg">{getCategoryIcon(item.category)}</span>
                             <div className="text-left">
                                <p className="text-xs font-black uppercase tracking-tighter text-white">{item.name}</p>
-                               <p className="text-[9px] font-bold text-slate-500 uppercase">{item.category} • {item.vibe}</p>
+                               <p className="text-[9px] font-bold text-slate-500 uppercase">{item.category} • {item.classification}</p>
                             </div>
                          </div>
                          <Plus size={16} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -401,24 +524,104 @@ const MnemeList: React.FC = () => {
                )}
             </AnimatePresence>
 
-            <form onSubmit={handleAddItem} className="flex items-center gap-3 pt-2 border-t border-white/5">
-                <select 
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="bg-white/5 border-none text-[10px] font-black uppercase tracking-widest rounded-xl px-3 h-12 focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer"
-                >
-                  {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <input 
-                  type="text" 
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  placeholder="Item personalizado..."
-                  className="flex-1 bg-transparent border-none text-sm font-medium focus:ring-0 placeholder:text-slate-600"
-                />
-                <button type="submit" className="size-12 rounded-2xl bg-primary text-black flex items-center justify-center shadow-lg active:scale-90 transition-transform">
-                  <Plus size={24} />
-                </button>
+            <form onSubmit={handleAddItem} className="space-y-4 pt-3 border-t border-white/5">
+               <div className="flex gap-3">
+                  <select 
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="bg-white/5 border-none text-[10px] font-black uppercase tracking-widest rounded-xl px-3 h-12 min-h-[48px] focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer text-white bg-[#030906] w-32 min-w-32"
+                  >
+                    {SECTIONS.map(s => <option key={s} value={s} className="bg-[#05100a] text-white font-bold">{s}</option>)}
+                  </select>
+                  <input 
+                    type="text" 
+                    value={newItemName}
+                    onChange={(e) => setNewItemName(e.target.value)}
+                    placeholder="Feijão, Arroz, Detergente..."
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 text-sm font-medium focus:ring-1 focus:ring-primary placeholder:text-slate-600 focus:outline-none"
+                  />
+               </div>
+
+               <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                     <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest pl-1">Marca</label>
+                     {showCustomBrandInput ? (
+                       <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="Digitar marca..."
+                            value={customBrand}
+                            onChange={(e) => setCustomBrand(e.target.value)}
+                            className="flex-1 h-10 px-3 bg-white/5 border border-primary/30 rounded-lg text-xs"
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => { setShowCustomBrandInput(false); setSelectedBrand(''); }}
+                            className="px-2 bg-white/5 rounded-lg text-[9px] font-bold uppercase text-slate-400"
+                          >
+                             Lista
+                          </button>
+                       </div>
+                     ) : (
+                       <select 
+                         value={selectedBrand}
+                         onChange={(e) => {
+                           if (e.target.value === "CUSTOM") {
+                             setShowCustomBrandInput(true);
+                           } else {
+                             setSelectedBrand(e.target.value);
+                           }
+                         }}
+                         className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white bg-[#030906]"
+                       >
+                          <option value="" className="bg-[#05100a] text-slate-400">Sem marca / Genérico</option>
+                          {PRESET_BRANDS.map(b => <option key={b} value={b} className="bg-[#05100a] text-white">{b}</option>)}
+                          <option value="CUSTOM" className="bg-[#05100a] text-primary font-bold">+ Nova...</option>
+                       </select>
+                     )}
+                  </div>
+
+                  <div className="space-y-1">
+                     <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest pl-1">Peso / Quantidade</label>
+                     {showCustomWeightInput ? (
+                       <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="ex: 800g"
+                            value={customWeight}
+                            onChange={(e) => setCustomWeight(e.target.value)}
+                            className="flex-1 h-10 px-3 bg-white/5 border border-primary/30 rounded-lg text-xs"
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => { setShowCustomWeightInput(false); setSelectedWeight('1 un'); }}
+                            className="px-2 bg-white/5 rounded-lg text-[9px] font-bold uppercase text-slate-400"
+                          >
+                             Lista
+                          </button>
+                       </div>
+                     ) : (
+                       <select 
+                         value={selectedWeight}
+                         onChange={(e) => {
+                           if (e.target.value === "CUSTOM") {
+                             setShowCustomWeightInput(true);
+                           } else {
+                             setSelectedWeight(e.target.value);
+                           }
+                         }}
+                         className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white bg-[#030906]"
+                       >
+                          {PRESET_WEIGHTS.map(w => <option key={w} value={w} className="bg-[#05100a] text-white">{w}</option>)}
+                          <option value="CUSTOM" className="bg-[#05100a] text-primary font-bold">+ Outro...</option>
+                       </select>
+                     )}
+                  </div>
+               </div>
+
+               <button type="submit" className="w-full h-11 rounded-xl bg-primary text-black font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform">
+                  <Plus size={16} /> Adicionar na Lista
+               </button>
             </form>
          </div>
       </div>
@@ -572,14 +775,19 @@ const MnemeList: React.FC = () => {
                           >
                              <div className="flex items-center gap-4 flex-1">
                                 <button 
-                                  onClick={() => handleToggleItem(item)}
-                                  className={`size-6 rounded-full border-2 flex items-center justify-center transition-all ${item.isCompleted ? 'bg-primary border-primary text-black' : 'border-white/20 hover:border-primary'}`}
-                                >
-                                   {item.isCompleted && <CheckCircle2 size={14} strokeWidth={3} />}
-                                </button>
+                                   onClick={() => handleToggleItem(item)}
+                                   className="size-12 min-h-[48px] min-w-[48px] flex items-center justify-center text-slate-400 hover:text-white transition-all active:scale-95 shrink-0"
+                                 >
+                                    <div className={`size-6 rounded-full border-2 flex items-center justify-center transition-all ${item.isCompleted ? 'bg-primary border-primary text-black' : 'border-white/20 hover:border-primary'}`}>
+                                       {item.isCompleted && <CheckCircle2 size={14} strokeWidth={3} />}
+                                    </div>
+                                 </button>
                                 <div className="space-y-0.5">
-                                   <div className="flex items-center gap-2">
+                                   <div className="flex items-center gap-2 flex-wrap">
                                       <span className={`text-sm font-bold italic uppercase transition-all ${item.isCompleted ? 'line-through text-slate-600' : 'text-white'}`}>{item.name}</span>
+                                      {item.brand && (
+                                        <span className="text-[9px] font-black text-amber-500 px-2 py-0.5 bg-amber-500/15 rounded uppercase tracking-wider">{item.brand}</span>
+                                      )}
                                       {item.price && (
                                         <span className="text-[10px] font-black text-primary px-2 py-0.5 bg-primary/10 rounded">R$ {item.price.toFixed(2)}</span>
                                       )}
@@ -587,7 +795,7 @@ const MnemeList: React.FC = () => {
                                    <div className="flex items-center gap-2">
                                       <Tag size={10} className="text-slate-500" />
                                       <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">
-                                        {item.quantity} {item.vibe ? `• ${item.vibe}` : ''}
+                                        {item.weightVolume || item.quantity} {item.vibe ? `• ${item.vibe}` : ''}
                                       </span>
                                    </div>
                                 </div>
@@ -595,13 +803,13 @@ const MnemeList: React.FC = () => {
                              <div className="flex items-center gap-1">
                                 <button 
                                   onClick={() => startEditing(item)}
-                                  className="size-10 rounded-xl hover:bg-white/10 text-slate-700 hover:text-white transition-all flex items-center justify-center"
+                                  className="size-12 min-h-[48px] min-w-[48px] rounded-xl hover:bg-white/10 text-slate-700 hover:text-white transition-all flex items-center justify-center"
                                 >
                                    <Settings size={16} />
                                 </button>
                                 <button 
                                   onClick={() => mnemeService.deleteItem(item.id)}
-                                  className="size-10 rounded-xl hover:bg-red-500/10 hover:text-red-500 text-slate-700 transition-all flex items-center justify-center"
+                                  className="size-12 min-h-[48px] min-w-[48px] rounded-xl hover:bg-red-500/10 hover:text-red-500 text-slate-700 transition-all flex items-center justify-center"
                                 >
                                    <Trash2 size={18} />
                                 </button>
@@ -617,7 +825,7 @@ const MnemeList: React.FC = () => {
       </main>
 
       {/* Diálogo com A Feira / Classificados */}
-      <div className="fixed bottom-12 right-6 z-40 flex flex-col gap-3">
+      <div className="fixed bottom-24 right-6 sm:bottom-28 z-40 flex flex-col gap-3">
          <motion.button 
            whileHover={{ scale: 1.1, x: -5 }}
            onClick={() => navigate('/guia-servicos')}
@@ -644,12 +852,13 @@ const MnemeList: React.FC = () => {
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setItemToComplete(null)}
                 className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+              style={{ willChange: "transform, opacity" }}
               />
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="relative w-full max-w-sm bg-[#0a1811] border border-primary/30 p-8 rounded-[2.5rem] shadow-4xl text-center space-y-6"
+                className="relative w-full max-w-sm bg-[#0a1811] border border-primary/30 p-8 rounded-[2.5rem] shadow-4xl text-center space-y-6" style={{ willChange: "transform, opacity" }}
               >
                  <div className="space-y-4">
                     <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto">
@@ -657,7 +866,7 @@ const MnemeList: React.FC = () => {
                     </div>
                     <div>
                        <h3 className="text-xl font-black italic uppercase tracking-tighter">Preço na Prateleira</h3>
-                       <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Registrar auditoria para {itemToComplete.name}</p>
+                       <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Informar preço de {itemToComplete.name}</p>
                     </div>
                     
                     <div className="relative">
@@ -701,12 +910,13 @@ const MnemeList: React.FC = () => {
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setEditingItem(null)}
                 className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+              style={{ willChange: "transform, opacity" }}
               />
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="relative w-full max-w-sm bg-[#0a1811] border border-white/10 p-8 rounded-[2.5rem] shadow-4xl text-center space-y-6"
+                className="relative w-full max-w-sm bg-[#0a1811] border border-white/10 p-8 rounded-[2.5rem] shadow-4xl text-center space-y-6" style={{ willChange: "transform, opacity" }}
               >
                  <div className="space-y-4">
                     <h3 className="text-xl font-black italic uppercase tracking-tighter">Editar Item</h3>
@@ -722,25 +932,93 @@ const MnemeList: React.FC = () => {
                           />
                        </div>
                        
-                       <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                             <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-2">Quantidade</label>
-                             <input 
-                               type="text" 
-                               value={editQuantity}
-                               onChange={(e) => setEditQuantity(e.target.value)}
-                               className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-sm font-bold focus:outline-none focus:border-primary"
-                             />
+                       <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-3">
+                             <div className="space-y-1">
+                                <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-1">Categoria</label>
+                                <select 
+                                  value={editCategory}
+                                  onChange={(e) => setEditCategory(e.target.value)}
+                                  className="w-full h-11 px-3 bg-[#030906] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:border-primary appearance-none cursor-pointer text-white"
+                                >
+                                   {SECTIONS.map(s => <option key={s} value={s} className="bg-[#05100a] text-white font-bold">{s}</option>)}
+                                </select>
+                             </div>
+
+                             <div className="space-y-1">
+                                <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-1">Peso / Qtd</label>
+                                {showEditCustomWeight ? (
+                                  <div className="flex gap-1.5 align-middle">
+                                     <input 
+                                       type="text" 
+                                       placeholder="ex: 800g"
+                                       value={editCustomWeight}
+                                       onChange={(e) => setEditCustomWeight(e.target.value)}
+                                       className="flex-1 h-11 px-3 bg-white/5 border border-primary/40 rounded-xl text-xs text-white focus:outline-none"
+                                     />
+                                     <button 
+                                       type="button" 
+                                       onClick={() => { setShowEditCustomWeight(false); setEditWeight(PRESET_WEIGHTS[0]); }}
+                                       className="px-2 bg-white/5 rounded-xl text-[8px] uppercase font-bold text-slate-400"
+                                     >
+                                        Lista
+                                     </button>
+                                  </div>
+                                ) : (
+                                  <select 
+                                    value={editWeight}
+                                    onChange={(e) => {
+                                      if (e.target.value === "CUSTOM") {
+                                        setShowEditCustomWeight(true);
+                                      } else {
+                                        setEditWeight(e.target.value);
+                                      }
+                                    }}
+                                    className="w-full h-11 px-3 bg-[#030906] border border-white/10 rounded-xl text-[10px] font-bold text-white cursor-pointer"
+                                  >
+                                     {PRESET_WEIGHTS.map(w => <option key={w} value={w} className="bg-[#05100a] text-white">{w}</option>)}
+                                     <option value="CUSTOM" className="bg-[#05100a] text-primary font-bold">+ Outro...</option>
+                                  </select>
+                                )}
+                             </div>
                           </div>
+
                           <div className="space-y-1">
-                             <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-2">Categoria</label>
-                             <select 
-                               value={editCategory}
-                               onChange={(e) => setEditCategory(e.target.value)}
-                               className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:border-primary appearance-none cursor-pointer"
-                             >
-                                {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                             </select>
+                             <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-1">Marca</label>
+                             {showEditCustomBrand ? (
+                               <div className="flex gap-2">
+                                  <input 
+                                    type="text" 
+                                    placeholder="Digitar marca..."
+                                    value={editCustomBrand}
+                                    onChange={(e) => setEditCustomBrand(e.target.value)}
+                                    className="flex-1 h-11 px-4 bg-white/5 border border-primary/40 rounded-xl text-xs text-white focus:outline-none"
+                                  />
+                                  <button 
+                                    type="button" 
+                                    onClick={() => { setShowEditCustomBrand(false); setEditBrand(''); }}
+                                    className="px-3 bg-white/5 rounded-xl text-[9px] font-bold text-slate-400 uppercase"
+                                  >
+                                     Lista
+                                  </button>
+                               </div>
+                             ) : (
+                               <select 
+                                 value={editBrand}
+                                 onChange={(e) => {
+                                   if (e.target.value === "CUSTOM") {
+                                     setShowEditCustomBrand(true);
+                                   } else {
+                                     setEditBrand(e.target.value);
+                                   }
+                                 }}
+                                 className="w-full h-11 px-4 bg-[#030906] border border-white/10 rounded-xl text-xs text-white cursor-pointer"
+                               >
+                                  <option value="" className="bg-[#05100a] text-slate-400">Sem marca / Genérico</option>
+                                  {PRESET_BRANDS.map(b => <option key={b} value={b} className="bg-[#05100a] text-white">{b}</option>)}
+                                  <option value="CUSTOM" className="bg-[#05100a] text-primary font-bold">+ Adicionar outra...</option>
+                               </select>
+                             )}
                           </div>
                        </div>
                     </div>
@@ -773,12 +1051,13 @@ const MnemeList: React.FC = () => {
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setIsInviteOpen(false)}
                 className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+              style={{ willChange: "transform, opacity" }}
               />
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="relative w-full max-w-sm bg-[#0a1811] border border-white/10 p-8 rounded-[2.5rem] shadow-3xl text-center space-y-6"
+                className="relative w-full max-w-sm bg-[#0a1811] border border-white/10 p-8 rounded-[2.5rem] shadow-3xl text-center space-y-6" style={{ willChange: "transform, opacity" }}
               >
                 <div className="space-y-4">
                    <h3 className="text-2xl font-black italic uppercase italic tracking-tighter">Convidar Familiar.</h3>
@@ -801,6 +1080,13 @@ const MnemeList: React.FC = () => {
            </div>
          )}
       </AnimatePresence>
+
+      {/* Scanner de Gôndola por Código de Barras (LTS Incremental) */}
+      <BarcodeScannerModal 
+         isOpen={isBarcodeOpen} 
+         onClose={() => setIsBarcodeOpen(false)} 
+         onItemAdded={handleBarcodeItemAdded}
+      />
     </div>
   );
 };

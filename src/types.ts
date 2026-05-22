@@ -138,7 +138,7 @@ export interface MnemeList {
   id: string;
   name: string;
   ownerId: string;
-  members: string[]; // UIDs para compartilhamento familiar
+  authorizedUsers: string[]; // UIDs para compartilhamento familiar
   supermarketName?: string;
   supermarketLocation?: { lat: number; lng: number };
   status?: 'active' | 'archived';
@@ -154,6 +154,8 @@ export interface MnemeItem {
   name: string;
   quantity: string;
   category: string; // Seção do supermercado (Hortifruti, Limpeza, etc.)
+  brand?: string;
+  weightVolume?: string;
   vibe?: string; // Segmentação (Ex: Necessidade, Desejo, Saudável)
   isCompleted: boolean;
   notes?: string;
