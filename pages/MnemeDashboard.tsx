@@ -63,9 +63,9 @@ const MnemeDashboard: React.FC = () => {
   ];
 
   const categoryData = [
-    { name: 'Hortifruti', value: 45 },
+    { name: 'Hortifrúti', value: 45 },
     { name: 'Mercearia', value: 30 },
-    { name: 'Carnes', value: 15 },
+    { name: 'Açougue', value: 15 },
     { name: 'Limpeza', value: 10 },
   ];
 
@@ -78,7 +78,7 @@ const MnemeDashboard: React.FC = () => {
           <div className="size-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-3">
              <Lock size={18} />
           </div>
-          <h5 className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Mnēmē PRO</h5>
+          <h5 className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Cesta do Lar PRO</h5>
           <h4 className="text-sm font-black italic uppercase italic tracking-tighter text-white mb-2">{title}</h4>
           <p className="text-[9px] font-bold text-slate-500 uppercase leading-none opacity-0 group-hover:opacity-100 transition-opacity">
              {desc}
@@ -127,7 +127,7 @@ const MnemeDashboard: React.FC = () => {
                
                <nav className="flex flex-col gap-6 w-full">
                   <button onClick={() => { navigate('/portal'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Portal BR232</button>
-                  <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Central Mnēmē</button>
+                  <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Central Cesta do Lar</button>
                   <button onClick={() => { navigate('/guia-servicos'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Guia de Serviços</button>
                   <button onClick={() => { navigate('/dashboard'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-primary/10 border border-primary/20 text-lg font-black uppercase tracking-[0.2em] italic text-primary">Meu Painel</button>
                </nav>
@@ -282,7 +282,7 @@ const MnemeDashboard: React.FC = () => {
            <div className="grid md:grid-cols-2 gap-6">
               <ProFeature 
                 title="Análise de Arbitragem Deep" 
-                desc="O Mnēmē var calcular automaticamente o lucro de parar em Sanharó para comprar queijo vs comprar no Recife."
+                desc="A Cesta do Lar vai calcular automaticamente o lucro de parar em Sanharó para comprar queijo vs comprar no Recife."
               />
               <ProFeature 
                 title="Sincronia Regional Plus" 
@@ -317,7 +317,7 @@ const MnemeDashboard: React.FC = () => {
                     </p>
                  </div>
                  <button className="h-16 px-10 bg-primary text-black rounded-2xl font-black uppercase text-sm tracking-widest shadow-[0_10px_30px_rgba(255,117,31,0.3)] hover:scale-105 transition-all">
-                    Seja Mnēmē PRO
+                    Seja Cesta do Lar PRO
                  </button>
               </div>
            </motion.div>

@@ -1,5 +1,5 @@
 import React, { Suspense, useState, useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate, Outlet } from 'react-router-dom';
 
 // Componente ScrollToTop para garantir fluidez na navegação
 const ScrollToTop = () => {
@@ -12,13 +12,14 @@ const ScrollToTop = () => {
 import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { APIProvider } from '@vis.gl/react-google-maps';
+import { SidebarLayout } from './src/components/SidebarLayout';
 
 // Componente de Blindagem
 import ErrorBoundary from './components/ErrorBoundary';
-import { SafetyGuardOverlay } from './src/components/SafetyGuard';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import PromoterRoute from './components/PromoterRoute';
 
 // Lazy Loading Modules (Code Splitting)
 import Welcome from './pages/Welcome';
@@ -39,13 +40,13 @@ const Patrons = React.lazy(() => import('./pages/Patrons'));
 const RegisterPatron = React.lazy(() => import('./pages/RegisterPatron'));
 const ReportAlert = React.lazy(() => import('./pages/ReportAlert'));
 const MotoTaxi = React.lazy(() => import('./pages/MotoTaxi'));
+const MotoTaxiLanding = React.lazy(() => import('./pages/MotoTaxiLanding'));
 const PostAd = React.lazy(() => import('./pages/PostAd'));
 const MyAds = React.lazy(() => import('./pages/MyAds'));
 const Roadmap = React.lazy(() => import('./pages/Roadmap'));
-const Profile = React.lazy(() => import('./pages/Profile'));
 const LoyaltyManager = React.lazy(() => import('./pages/LoyaltyManager'));
-const MultimodalRegistration = React.lazy(() => import('./pages/MultimodalRegistration'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
+const DashboardPromotor = React.lazy(() => import('./pages/DashboardPromotor'));
 const Terms = React.lazy(() => import('./pages/Terms'));
 const PolicyCenter = React.lazy(() => import('./pages/PolicyCenter'));
 // Módulos de Fidelidade
@@ -88,19 +89,19 @@ const AppContent: React.FC = () => {
     <Router>
       <ScrollToTop />
       <div className="min-h-screen bg-[#050d09] text-white font-display selection:bg-primary selection:text-black leading-relaxed">
-        <SafetyGuardOverlay />
-        <Layout auth={isAuthenticated}>
-          <Suspense fallback={<LoadingScreen />}>
-            <Routes>
-              {/* Rotas Públicas */}
-              <Route path="/" element={<Welcome />} />
-              <Route path="/login" element={<ErrorBoundary moduleName="Autenticação"><Login /></ErrorBoundary>} />
-              <Route path="/registrar" element={<ErrorBoundary moduleName="Autenticação"><Login /></ErrorBoundary>} />
+        <Suspense fallback={<LoadingScreen />}>
+          <Routes>
+            {/* Rotas Públicas */}
+            <Route path="/" element={<Welcome />} />
+            <Route path="/login" element={<ErrorBoundary moduleName="Autenticação"><Login /></ErrorBoundary>} />
+            <Route path="/registrar" element={<ErrorBoundary moduleName="Autenticação"><Login /></ErrorBoundary>} />
+
+            {/* Canal Operacional / Rotas sob Chassi SidebarLayout */}
+            <Route element={<SidebarLayout auth={isAuthenticated} />}>
               <Route path="/termos" element={<Terms />} />
               <Route path="/politica-de-privacidade" element={<PolicyCenter />} />
               <Route path="/termos-e-uso" element={<PolicyCenter />} />
               <Route path="/central-de-politicas" element={<PolicyCenter />} />
-              <Route path="/registro" element={<ProtectedRoute><MultimodalRegistration /></ProtectedRoute>} />
               <Route path="/porta-luvas" element={<ProtectedRoute><LoyaltyManager /></ProtectedRoute>} />
               <Route path="/meus-anuncios" element={<ProtectedRoute><MyAds /></ProtectedRoute>} />
               
@@ -125,6 +126,8 @@ const AppContent: React.FC = () => {
               
               {/* Módulo Especializado: Moto-Táxi */}
               <Route path="/moto-taxi" element={<ErrorBoundary moduleName="Ranking Moto-Táxi"><MotoTaxi /></ErrorBoundary>} />
+              <Route path="/moto-taxi/planos" element={<ErrorBoundary moduleName="Planos Moto-Táxi"><MotoTaxiLanding /></ErrorBoundary>} />
+              <Route path="/moto-taxi/landing" element={<ErrorBoundary moduleName="SaaS Moto-Táxi"><MotoTaxiLanding /></ErrorBoundary>} />
 
               {/* Módulo Fidelidade */}
               <Route path="/fidelidade" element={<ProtectedRoute><ErrorBoundary moduleName="Porta-Luvas Digital"><LoyaltyWallet /></ErrorBoundary></ProtectedRoute>} />
@@ -136,15 +139,31 @@ const AppContent: React.FC = () => {
               <Route path="/mneme/dashboard" element={<ProtectedRoute><ErrorBoundary moduleName="Dashboard Mnēmē"><MnemeDashboard /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/mneme/mercado" element={<ProtectedRoute><ErrorBoundary moduleName="Consultor de Gôndola"><MnemeMarket /></ErrorBoundary></ProtectedRoute>} />
 
-              {/* Rotas Protegidas */}
-              <Route path="/perfil" element={<ProtectedRoute><ErrorBoundary moduleName="Perfil do Usuário"><Profile /></ErrorBoundary></ProtectedRoute>} />
+              {/* Redirecionamento de Rota Depreciada */}
+              <Route path="/perfil" element={<Navigate to="/dashboard" replace />} />
               <Route path="/reportar" element={<ProtectedRoute><ErrorBoundary moduleName="Reporte de Alertas"><ReportAlert /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/anunciar" element={<ProtectedRoute><ErrorBoundary moduleName="Gestor de Anúncios"><PostAd /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/anunciar/:adId" element={<ProtectedRoute><ErrorBoundary moduleName="Editor de Anúncio"><PostAd /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/admin" element={<AdminRoute><ErrorBoundary moduleName="Admin Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
-            </Routes>
-          </Suspense>
-        </Layout>
+              <Route path="/promotor" element={<PromoterRoute><ErrorBoundary moduleName="Dashboard do Promotor"><DashboardPromotor /></ErrorBoundary></PromoterRoute>} />
+              <Route path="/dashboard-promotor" element={<PromoterRoute><ErrorBoundary moduleName="Dashboard do Promotor"><DashboardPromotor /></ErrorBoundary></PromoterRoute>} />
+              <Route path="/dashboard-tronco" element={<PromoterRoute><ErrorBoundary moduleName="Dashboard Promotor Tronco">
+                <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-[#050d09] border border-emerald-900/40 m-4 text-center">
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00E676] mb-2">Módulo Territorial</span>
+                  <h1 className="text-xl font-black uppercase tracking-wider font-mono">Dashboard do Promotor <span className="text-[#00E676]">Tronco</span></h1>
+                  <p className="text-xs text-slate-400 mt-2 max-w-md font-sans">Esta interface está reservada para o escopo subsequente de governança territorial e gerenciamento de microrregiões da BR-232.</p>
+                </div>
+              </ErrorBoundary></PromoterRoute>} />
+              <Route path="/dashboard-financeiro" element={<PromoterRoute><ErrorBoundary moduleName="Dashboard Financeiro">
+                <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-[#050d09] border border-emerald-900/40 m-4 text-center">
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00E676] mb-2">Módulo de Auditoria</span>
+                  <h1 className="text-xl font-black uppercase tracking-wider font-mono">Dashboard <span className="text-[#00E676]">Financeiro</span></h1>
+                  <p className="text-xs text-slate-400 mt-2 max-w-md font-sans">Esta interface está reservada para o escopo subsequente de auditoria de caixas, split de pagamentos e liquidações gerais do ecossistema e do gateway bancário.</p>
+                </div>
+              </ErrorBoundary></PromoterRoute>} />
+            </Route>
+          </Routes>
+        </Suspense>
       </div>
     </Router>
   );
@@ -170,73 +189,6 @@ const LoadingScreen = () => (
   </div>
 );
 
-const Layout: React.FC<{ children: React.ReactNode, auth: boolean }> = ({ children, auth }) => {
-  return (
-    <div className="flex flex-col min-h-screen relative overflow-x-hidden">
-      <main className="flex-1">
-        {children}
-      </main>
-      <BottomNav auth={auth} />
-    </div>
-  );
-};
 
-const BottomNav: React.FC<{ auth: boolean }> = ({ auth }) => {
-  const location = useLocation();
-  
-  const hiddenPrefixes = [
-    '/reportar', 
-    '/anunciar', 
-    '/login', 
-    '/registrar',
-    '/termos', 
-    '/politica-de-privacidade',
-    '/termos-e-uso',
-    '/central-de-politicas',
-    '/fidelidade/gerir', 
-    '/mneme/lista', 
-    '/mneme/mercado'
-  ];
-
-  const shouldHide = location.pathname === '/' || hiddenPrefixes.some(p => location.pathname.startsWith(p));
-
-  if (shouldHide) return null;
-
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] pb-[env(safe-area-inset-bottom)] bg-[#050d09]/95 backdrop-blur-xl border-t border-white/5 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-      <nav className="h-20 px-6 flex items-center justify-between max-w-lg mx-auto relative gap-1">
-        <NavItem to="/portal" icon="explore" label="Portal" active={location.pathname === '/portal'} />
-        <NavItem to="/dashboard" icon="dashboard" label="Painel" active={location.pathname === '/dashboard'} />
-        <NavItem to="/mneme" icon="shopping_basket" label="Cesta" active={location.pathname.startsWith('/mneme')} />
-        
-        {/* Destaque Central: Fidelidade */}
-        <div className="relative -top-6">
-           <Link to="/alertas" className="size-16 rounded-[1.2rem] bg-primary flex items-center justify-center shadow-[0_10px_30px_rgba(0,230,118,0.3)] border-4 border-[#050d09] active:scale-95 transition-transform group">
-              <span className="material-symbols-outlined text-black text-[28px] group-hover:rotate-12 transition-transform">map</span>
-           </Link>
-        </div>
-
-        <NavItem to="/fidelidade" icon="confirmation_number" label="FIEL" active={location.pathname === '/fidelidade'} />
-        <NavItem 
-          to={auth ? "/perfil" : "/login"} 
-          icon={auth ? "account_circle" : "person"} 
-          label={auth ? "Perfil" : "Entrar"} 
-          active={location.pathname === '/perfil' || location.pathname === '/login'} 
-        />
-      </nav>
-    </div>
-  );
-};
-
-const NavItem: React.FC<{ to: string; icon: string; label: string; active: boolean }> = ({ to, icon, label, active }) => (
-  <Link to={to} className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 w-14 ${active ? 'text-primary' : 'text-slate-500 hover:text-slate-300'}`}>
-    <span className={`material-symbols-outlined text-[26px] ${active ? 'filled scale-110' : ''} transition-transform`}>
-      {icon}
-    </span>
-    <span className={`text-[9px] font-black uppercase tracking-tight ${active ? 'opacity-100' : 'opacity-70'}`}>
-      {label}
-    </span>
-  </Link>
-);
 
 export default App;

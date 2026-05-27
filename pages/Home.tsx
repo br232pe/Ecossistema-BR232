@@ -78,6 +78,7 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
           
           <div className="flex items-center gap-2 sm:gap-3">
              <nav className="hidden lg:flex items-center gap-6 mr-4">
+                 <a href="/#/" className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic px-2 py-1">Início</a>
                  <button onClick={() => navigate('/mneme')} className="text-[9px] font-black uppercase tracking-widest text-[#ff751f] hover:text-primary transition-colors italic px-2 py-1">Cesta</button>
                 <button onClick={() => navigate('/guia-servicos')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic px-2 py-1">Serviços</button>
                 <button onClick={() => navigate('/planos')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic px-2 py-1">Planos</button>
@@ -139,8 +140,9 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
                </div>
                
                <nav className="flex flex-col gap-6 w-full">
+                  <a href="/#/" className="h-16 rounded-2xl bg-white/2 hover:bg-white/5 border border-white/5 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300 flex items-center justify-center">Início</a>
 
-                  <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-[#ff751f]/10 border border-[#ff751f]/20 text-lg font-black uppercase tracking-[0.2em] italic text-[#ff751f]">Cesta Mnēmē</button>
+                  <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-[#ff751f]/10 border border-[#ff751f]/20 text-lg font-black uppercase tracking-[0.2em] italic text-[#ff751f]">Cesta do Lar</button>
                   <button onClick={() => { navigate('/guia-servicos'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Guia de Serviços</button>
                   <button onClick={() => { navigate('/planos'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Planos & Patronos</button>
                   <button onClick={() => { navigate('/blog'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Blog da 232</button>
@@ -165,7 +167,7 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
           <motion.section 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            onClick={() => navigate('/registro')}
+            onClick={() => navigate('/dashboard?sima=true')}
             className="p-6 bg-primary/10 border border-primary/20 rounded-[2rem] flex items-center gap-6 cursor-pointer hover:bg-primary/20 transition-all group"
           >
             <div className="size-16 rounded-2xl bg-primary flex items-center justify-center text-black shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
@@ -330,7 +332,7 @@ const Home: React.FC<{ auth?: boolean }> = ({ auth }) => {
           />
           <QuickModuleBtn 
             icon={<ShoppingCart />} 
-            label="Mnēmē" 
+            label="Cesta do Lar" 
             onClick={() => navigate('/mneme')} 
             color="#ff751f"
           />

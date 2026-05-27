@@ -63,8 +63,8 @@ const MnemeMarket: React.FC = () => {
                     
                     <nav className="flex flex-col gap-6 w-full">
                        <button onClick={() => { navigate('/portal'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Portal BR232</button>
-                       <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Central Mnēmē</button>
-                       <button onClick={() => { navigate('/mneme/dashboard'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-[#ff751f]/10 border border-[#ff751f]/20 text-lg font-black uppercase tracking-[0.2em] italic text-[#ff751f]">Dashboard Mnēmē</button>
+                       <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Central Cesta do Lar</button>
+                       <button onClick={() => { navigate('/mneme/dashboard'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-[#ff751f]/10 border border-[#ff751f]/20 text-lg font-black uppercase tracking-[0.2em] italic text-[#ff751f]">Dashboard Cesta do Lar</button>
                        <button onClick={() => { navigate('/guia-servicos'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Guia de Serviços</button>
                        <button onClick={() => { navigate('/dashboard'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-primary/10 border border-primary/20 text-lg font-black uppercase tracking-[0.2em] italic text-primary">Meu Painel</button>
                     </nav>
@@ -144,7 +144,7 @@ const MnemeMarket: React.FC = () => {
                 <div className="space-y-2">
                    <h3 className="text-3xl font-black italic uppercase italic tracking-tighter">Diálogo com <br/><span className="text-[#ff751f] tracking-tighter">A Feira.</span></h3>
                    <p className="text-slate-400 font-medium italic text-sm leading-relaxed">
-                      Transforme sua lista do Mnēmē em pedidos diretos nos Patronos de cada cidade. Logística reversa de alta performance.
+                      Transforme sua lista da Cesta do Lar em pedidos diretos nos Patronos de cada cidade. Logística reversa de alta performance.
                    </p>
                 </div>
                 <button 

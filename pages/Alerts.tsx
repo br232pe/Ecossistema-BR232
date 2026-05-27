@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { db } from '../src/contexts/AuthContext';
 import { 
   MapPin, 
   AlertTriangle, 
@@ -80,53 +82,124 @@ const Alerts: React.FC = () => {
   return <AlertsContent />;
 };
 
+const CITY_COORDS: Record<string, { lat: number, lng: number }> = {
+  'recife': { lat: -8.0578, lng: -34.8829 },
+  'jaboatão': { lat: -8.1256, lng: -35.0158 },
+  'jaboatao': { lat: -8.1256, lng: -35.0158 },
+  'moreno': { lat: -8.1219, lng: -35.0886 },
+  'vitoria': { lat: -8.1189, lng: -35.2933 },
+  'vitória': { lat: -8.1189, lng: -35.2933 },
+  'gravata': { lat: -8.2018, lng: -35.5678 },
+  'gravatá': { lat: -8.2018, lng: -35.5678 },
+  'bezerros': { lat: -8.2326, lng: -35.7924 },
+  'caruaru': { lat: -8.2831, lng: -35.9727 },
+  'belo jardim': { lat: -8.3344, lng: -36.4258 },
+  'arcoverde': { lat: -8.4183, lng: -37.0544 },
+  'custodia': { lat: -8.0878, lng: -37.6433 },
+  'custódia': { lat: -8.0878, lng: -37.6433 },
+  'serra talhada': { lat: -7.9908, lng: -38.2986 },
+  'salgueiro': { lat: -8.0742, lng: -39.1192 },
+};
+
+function getCoordsForPlace(city?: string, km?: number): { lat: number, lng: number } {
+  const normCity = (city || '').toLowerCase().trim();
+  if (CITY_COORDS[normCity]) {
+    return CITY_COORDS[normCity];
+  }
+  return BR232_CENTER;
+}
+
+const mapFirestoreAlert = (docData: any, id: string) => {
+  const category = docData.category || 'Outros';
+  const city = docData.city || 'Caruaru';
+  const km = docData.km || 0;
+  const description = docData.description || '';
+  const timestamp = docData.timestamp;
+
+  let type = category;
+  if (category === 'transito') type = 'Trânsito';
+  else if (category === 'acidente') type = 'Acidente';
+  else if (category === 'obra') type = 'Obra';
+  else if (category === 'seguranca') type = 'Segurança';
+  else if (category === 'clima') type = 'Clima';
+  else if (category === 'servicos') type = 'Serviços';
+  else {
+    type = category.charAt(0).toUpperCase() + category.slice(1);
+  }
+
+  const msg = km ? `KM ${km} - ${description}` : description;
+
+  let severity = 'low';
+  if (category === 'acidente') severity = 'high';
+  else if (category === 'obra') severity = 'medium';
+
+  let time = 'Recent';
+  if (timestamp) {
+    try {
+      const date = timestamp.toDate();
+      const diffMs = Date.now() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 1) {
+        time = 'Agora';
+      } else if (diffMins < 60) {
+        time = `${diffMins} min`;
+      } else {
+        const diffHrs = Math.floor(diffMins / 60);
+        if (diffHrs < 24) {
+          time = `${diffHrs}h`;
+        } else {
+          time = `${Math.floor(diffHrs / 24)}d`;
+        }
+      }
+    } catch (e) {
+      time = 'Agora';
+    }
+  } else {
+    time = 'Agora';
+  }
+
+  let position = BR232_CENTER;
+  if (docData.lat !== undefined && docData.lng !== undefined) {
+    position = { lat: Number(docData.lat), lng: Number(docData.lng) };
+  } else if (docData.position && docData.position.lat !== undefined && docData.position.lng !== undefined) {
+    position = { lat: Number(docData.position.lat), lng: Number(docData.position.lng) };
+  } else {
+    position = getCoordsForPlace(city, km);
+  }
+
+  return {
+    id,
+    type,
+    category,
+    msg,
+    city,
+    time,
+    severity,
+    position
+  };
+};
+
 const AlertsContent: React.FC = () => {
   const navigate = useNavigate();
   const map = useMap();
   const [selectedCategory, setSelectedCategory] = useState('Todos');
-  const [selectedAlertId, setSelectedAlertId] = useState<number | null>(null);
+  const [selectedAlertId, setSelectedAlertId] = useState<string | number | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
-  const [alertData, setAlertData] = useState<Record<number, { text: string, meters: number }>>({});
+  const [alertData, setAlertData] = useState<Record<string | number, { text: string, meters: number }>>({});
+  const [alerts, setAlerts] = useState<any[]>([]);
 
-  const alerts = [
-    { 
-      id: 1, 
-      type: 'Acidente', 
-      msg: 'KM 24 - Colisão Leve', 
-      city: 'Jaboatão', 
-      time: '2 min', 
-      severity: 'high', 
-      position: { lat: -8.1256, lng: -35.0158 } 
-    },
-    { 
-      id: 2, 
-      type: 'Obra', 
-      msg: 'KM 82 - Recapeamento', 
-      city: 'Bezerros', 
-      time: '15 min', 
-      severity: 'medium', 
-      position: { lat: -8.2326, lng: -35.7924 } 
-    },
-    { 
-      id: 3, 
-      type: 'Radar', 
-      msg: 'Novo radar KM 115', 
-      city: 'Caruaru', 
-      time: '1h', 
-      severity: 'low', 
-      position: { lat: -8.2831, lng: -35.9727 } 
-    },
-    { 
-      id: 4, 
-      type: 'Animal', 
-      msg: 'Animais na pista KM 310', 
-      city: 'Custódia', 
-      time: '22 min', 
-      severity: 'medium', 
-      position: { lat: -8.0878, lng: -37.6433 } 
-    },
-  ];
+  useEffect(() => {
+    const q = query(collection(db, 'alerts'), orderBy('timestamp', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const activeAlerts = snapshot.docs.map(doc => mapFirestoreAlert(doc.data(), doc.id));
+      setAlerts(activeAlerts);
+    }, (error) => {
+      console.error("Erro na escuta de alertas em tempo real:", error);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handlePlaceSelect = useCallback((place: any) => {
     if (place && map) {
@@ -153,7 +226,7 @@ const AlertsContent: React.FC = () => {
   const markerLib = useMapsLibrary('marker');
 
   useEffect(() => {
-    if (userLocation && hasValidKey && routesLib) {
+    if (userLocation && hasValidKey && routesLib && alerts.length > 0) {
       try {
         const service = new routesLib.DistanceMatrixService();
         service.getDistanceMatrix({
@@ -162,7 +235,7 @@ const AlertsContent: React.FC = () => {
           travelMode: 'DRIVING' as any,
         }, (response: any, status: any) => {
           if (status === 'OK' && response && response.rows && response.rows[0]) {
-            const data: Record<number, { text: string, meters: number }> = {};
+            const data: Record<string | number, { text: string, meters: number }> = {};
             response.rows[0].elements.forEach((element: any, index: number) => {
               if (element && element.status === 'OK' && alerts[index]) {
                 data[alerts[index].id] = {
@@ -178,9 +251,24 @@ const AlertsContent: React.FC = () => {
         console.warn('Distance Matrix Service failed:', err);
       }
     }
-  }, [userLocation, routesLib]);
+  }, [userLocation, routesLib, alerts]);
 
   const categories = ['Todos', 'Trânsito', 'Segurança', 'Clima', 'Serviços'];
+
+  const filteredAlerts = alerts.filter(alert => {
+    if (selectedCategory === 'Todos') return true;
+    
+    const catNormalizer: Record<string, string> = {
+      'Trânsito': 'transito',
+      'Acidente': 'acidente',
+      'Obra': 'obra',
+      'Segurança': 'seguranca',
+      'Clima': 'clima',
+      'Serviços': 'servicos'
+    };
+    const targetCat = catNormalizer[selectedCategory] || selectedCategory.toLowerCase();
+    return alert.category === targetCat || alert.type.toLowerCase() === selectedCategory.toLowerCase();
+  });
 
   if (!markerLib) {
     return (
@@ -248,7 +336,7 @@ const AlertsContent: React.FC = () => {
              disableDefaultUI={true}
              style={{ width: '100%', height: '100%' }}
            >
-             {map && markerLib && alerts.map(alert => (
+             {map && markerLib && filteredAlerts.map(alert => (
                <AdvancedMarker 
                  key={alert.id}
                  position={alert.position}
@@ -277,11 +365,11 @@ const AlertsContent: React.FC = () => {
              <AnimatePresence>
                {selectedAlertId && (
                  <InfoWindow
-                   position={alerts.find(a => a.id === selectedAlertId)?.position}
+                   position={filteredAlerts.find(a => a.id === selectedAlertId)?.position}
                    onCloseClick={() => setSelectedAlertId(null)}
                  >
                    {(() => {
-                     const alert = alerts.find(a => a.id === selectedAlertId);
+                     const alert = filteredAlerts.find(a => a.id === selectedAlertId);
                      if (!alert) return null;
                      return (
                        <div className="p-1 min-w-[160px]">
@@ -308,6 +396,7 @@ const AlertsContent: React.FC = () => {
                  initial={{ opacity: 0, y: -20 }}
                  animate={{ opacity: 1, y: 0 }}
                  exit={{ opacity: 0, y: -20 }}
+                 style={{ willChange: "transform, opacity" }}
                  className="absolute top-6 left-6 right-6 md:left-auto md:right-24 md:w-80 z-50"
                >
                  <div className="bg-[#0c1a14]/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-2 shadow-2xl">
@@ -350,16 +439,17 @@ const AlertsContent: React.FC = () => {
               <h3 className="text-xs font-black uppercase tracking-[0.2em] italic flex items-center gap-2">
                  <Clock size={14} className="text-primary" /> Recentes na Malha
               </h3>
-              <span className="px-2 py-1 bg-primary/10 text-primary border border-primary/20 rounded-md text-[8px] font-black uppercase leading-none">{alerts.length} Ativos</span>
+              <span className="px-2 py-1 bg-primary/10 text-primary border border-primary/20 rounded-md text-[8px] font-black uppercase leading-none">{filteredAlerts.length} Ativos</span>
            </div>
            
            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 no-scrollbar">
-              {[...alerts].sort((a,b) => (alertData[a.id]?.meters || 9e9) - (alertData[b.id]?.meters || 9e9)).map(alert => (
+              {[...filteredAlerts].sort((a,b) => (alertData[a.id]?.meters || 9e9) - (alertData[b.id]?.meters || 9e9)).map(alert => (
                 <motion.div 
                   key={alert.id}
                   whileHover={{ x: 4 }}
                   onClick={() => setSelectedAlertId(alert.id)}
-                  className={`p-5 border rounded-3xl group cursor-pointer transition-all flex items-center gap-4 relative overflow-hidden ${
+                  style={{ willChange: "transform, opacity" }}
+                  className={`p-5 min-h-[64px] border rounded-3xl group cursor-pointer transition-all flex items-center gap-4 relative overflow-hidden ${
                     selectedAlertId === alert.id ? 'bg-primary/10 border-primary/40' : 'bg-white/5 border-white/10 hover:bg-white/10'
                   }`}
                 >

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   BarChart3, 
@@ -14,8 +14,19 @@ import {
   TrendingUp,
   MapPin
 } from 'lucide-react';
+import { provisionDemoPromoter } from '../src/utils/createDemoAccounts';
 
 const AdminDashboard: React.FC = () => {
+  const [provisionStatus, setProvisionStatus] = useState<{ loading: boolean; message: string | null }>({
+    loading: false,
+    message: null,
+  });
+
+  const handleProvisionDemo = async () => {
+    setProvisionStatus({ loading: true, message: null });
+    const result = await provisionDemoPromoter();
+    setProvisionStatus({ loading: false, message: result.message });
+  };
   return (
     <div className="min-h-screen bg-[#05100a] text-white">
       {/* Sidebar (Desktop Only) */}
@@ -110,6 +121,31 @@ const AdminDashboard: React.FC = () => {
                     <button className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white/10 transition-all">
                        Ver Todas as Cidades <ChevronRight size={16} />
                     </button>
+                 </div>
+              </div>
+
+              {/* Sandbox Provisioner Widget */}
+              <div id="sandbox-provisioner" className="bg-[#0b1410] border border-emerald-900/40 p-8 rounded-[2.5rem] space-y-4 text-left my-8">
+                 <div className="flex items-center gap-3">
+                    <Zap className="text-[#00E676]" size={18} />
+                    <h3 className="text-sm font-black uppercase tracking-widest font-mono">Sandbox Comercial: Contas de Demonstração</h3>
+                 </div>
+                 <p className="text-xs text-slate-400 font-sans max-w-2xl leading-relaxed">
+                    Gere automaticamente as credenciais de homologação comercial e teste para as novas funções de expansão territorial do ecossistema. O provisionamento criará o registro de autenticação no Firebase Auth e o perfil do banco com o papel <strong className="text-white font-mono">promoter_branch</strong>.
+                 </p>
+                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-2">
+                    <button 
+                       disabled={provisionStatus.loading}
+                       onClick={handleProvisionDemo}
+                       className="px-6 py-3.5 bg-[#00E676] hover:bg-[#00c564] disabled:opacity-50 text-black font-black uppercase tracking-widest text-[9.5px] rounded-xl flex items-center gap-2 transition-all cursor-pointer font-sans"
+                    >
+                       {provisionStatus.loading ? 'Provisionando...' : 'Provisionar Promotor Demo'}
+                    </button>
+                    {provisionStatus.message && (
+                       <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider bg-black/40 border border-emerald-950 px-3 py-1.5 rounded-lg">
+                          {provisionStatus.message}
+                       </span>
+                    )}
                  </div>
               </div>
 

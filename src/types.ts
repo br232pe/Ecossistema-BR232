@@ -23,6 +23,15 @@ export interface UserStats {
   totalKm: number;
 }
 
+export type EcosystemRole = 
+  | 'user'              // Consumidor final / Condutor
+  | 'operator'          // Motorista / Moto-táxi (SaaS)
+  | 'admin'             // Administrador Geral (Acesso Total)
+  | 'partner_finance'   // Parceiro Financeiro (Leitura de Caixa)
+  | 'partner_marketing' // Parceiro de Marketing (Tronco Global)
+  | 'promoter_trunk'    // Promotor Tronco (Rede Local)
+  | 'promoter_branch';  // Promotor Galho (Ponta de Vinculação)
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -33,6 +42,12 @@ export interface UserProfile {
   stats: UserStats;
   createdAt: any;
   updatedAt: any;
+  primaryInterest?: 'mneme' | 'moto-taxi' | 'feira' | 'fidelidade' | 'outro';
+  activeInterest?: string;
+  planTier?: 'bronze' | 'prata' | 'ouro';
+  role?: EcosystemRole;
+  referredBy?: string;
+  linkedTrunk?: string;
 }
 
 export interface Patron {
@@ -139,6 +154,7 @@ export interface MnemeList {
   name: string;
   ownerId: string;
   authorizedUsers: string[]; // UIDs para compartilhamento familiar
+  sharedWith?: string[]; // E-mails para compartilhamento familiar
   supermarketName?: string;
   supermarketLocation?: { lat: number; lng: number };
   status?: 'active' | 'archived';
@@ -152,7 +168,7 @@ export interface MnemeItem {
   id: string;
   listId: string;
   name: string;
-  quantity: string;
+  quantity: number;
   category: string; // Seção do supermercado (Hortifruti, Limpeza, etc.)
   brand?: string;
   weightVolume?: string;
@@ -160,7 +176,9 @@ export interface MnemeItem {
   isCompleted: boolean;
   notes?: string;
   price?: number;
+  priceHistory?: Array<{ price: number, date: any, location: string }>;
   nutriScore?: string; // Inteligência Nutricional
+  location?: string; // 'Local da Compra' do item
   addedBy: string;
   createdAt: any;
 }
@@ -172,3 +190,16 @@ export interface GoogleCalendarEvent {
   location?: string;
   cityName: string;
 }
+
+export interface PricingProfile {
+  baseFare: number;
+  pricePerKm: number;
+}
+
+export interface SubscriptionCoupon {
+  discount: number;
+  currentUses: number;
+  maxUses: number;
+  isActive: boolean;
+}
+

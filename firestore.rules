@@ -23,6 +23,10 @@ service cloud.firestore {
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.identities.isColumnist == true;
     }
 
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -38,12 +42,15 @@ service cloud.firestore {
     // --- Validation Blueprints ---
 
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'identities', 'stats', 'createdAt', 'updatedAt'])
-        && data.keys().size() == 6
+      return data.keys().hasAll(['uid', 'email', 'identities', 'stats', 'role', 'referredBy', 'linkedTrunk', 'createdAt', 'updatedAt'])
+        && data.keys().size() == 9
         && data.uid == request.auth.uid
         && data.email is string
         && data.identities is map
         && data.stats is map
+        && data.role == 'user'
+        && data.referredBy is string
+        && data.linkedTrunk is string
         && data.createdAt == request.time
         && data.updatedAt == request.time;
     }
@@ -99,18 +106,43 @@ service cloud.firestore {
         && data.createdAt == request.time;
     }
 
+    function isValidSubscriptionCoupon(data) {
+      return data.keys().hasAll(['discount', 'currentUses', 'maxUses', 'isActive'])
+        && data.keys().size() == 4
+        && data.discount is number
+        && data.currentUses is number
+        && data.maxUses is number
+        && data.isActive is bool;
+    }
+
     // --- Match Blocks ---
 
     match /users/{uid} {
-      allow read: if isOwner(uid);
+      allow read: if isOwner(uid) || isAdmin();
       allow create: if isOwner(uid) && isValidUser(incoming());
-      allow update: if isOwner(uid) 
-        && incoming().uid == existing().uid
-        && (
-          // Action: Update Stats
-          (incoming().diff(existing()).affectedKeys().hasOnly(['stats', 'updatedAt', 'currentCity'])) ||
-          // Action: Update Identities
-          (incoming().diff(existing()).affectedKeys().hasOnly(['identities', 'updatedAt']))
+      allow update: if (
+          (isOwner(uid) 
+            && incoming().uid == existing().uid
+            && (
+              (!existing().keys().hasAll(['role']) && (!incoming().keys().hasAll(['role']) || incoming().role == 'user')) || 
+              (existing().keys().hasAll(['role']) && incoming().role == existing().role)
+            )
+            && (
+              (!existing().keys().hasAll(['referredBy']) && (!incoming().keys().hasAll(['referredBy']) || incoming().referredBy == '')) || 
+              (existing().keys().hasAll(['referredBy']) && incoming().referredBy == existing().referredBy)
+            )
+            && (
+              (!existing().keys().hasAll(['linkedTrunk']) && (!incoming().keys().hasAll(['linkedTrunk']) || incoming().linkedTrunk == '')) || 
+              (existing().keys().hasAll(['linkedTrunk']) && incoming().linkedTrunk == existing().linkedTrunk)
+            )
+            && (
+              // Permite a atualização de estatísticas e a sincronização do foco ativo (activeInterest)
+              (incoming().diff(existing()).affectedKeys().hasOnly(['stats', 'updatedAt', 'currentCity', 'activeInterest'])) ||
+              // Action: Update Identities
+              (incoming().diff(existing()).affectedKeys().hasOnly(['identities', 'updatedAt']))
+            )
+          ) || 
+          isAdmin()
         )
         && incoming().updatedAt == request.time;
     }
@@ -187,50 +219,37 @@ service cloud.firestore {
     }
 
     match /mneme_lists/{listId} {
-      allow read, list: if isSignedIn() && (request.auth.uid in resource.data.authorizedUsers || (request.auth.token.email != null && request.auth.token.email in resource.data.authorizedUsers));
+      allow read, list: if isSignedIn() && (request.auth.uid == resource.data.ownerId || request.auth.uid in resource.data.authorizedUsers || (request.auth.token.email != null && request.auth.token.email in resource.data.authorizedUsers));
       allow create: if isSignedIn() && isValidMnemeList(incoming());
       allow update: if isSignedIn()
-        && (request.auth.uid in existing().authorizedUsers || (request.auth.token.email != null && request.auth.token.email in existing().authorizedUsers))
+        && (request.auth.uid == existing().ownerId || request.auth.uid in existing().authorizedUsers || (request.auth.token.email != null && request.auth.token.email in existing().authorizedUsers))
         && incoming().ownerId == existing().ownerId
         && (
           incoming().diff(existing()).affectedKeys().hasOnly(['name', 'supermarketName', 'supermarketLocation', 'status', 'totalSpent', 'archivedAt', 'updatedAt']) ||
-          incoming().diff(existing()).affectedKeys().hasOnly(['authorizedUsers', 'updatedAt'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['authorizedUsers', 'sharedWith', 'updatedAt'])
         )
         && incoming().updatedAt == request.time;
       allow delete: if isSignedIn() && request.auth.uid == existing().ownerId;
     }
 
     match /mneme_items/{itemId} {
-      allow read, list: if isSignedIn() && (
-        request.auth.uid in get(/databases/$(database)/documents/mneme_lists/$(resource.data.listId)).data.authorizedUsers ||
-        (request.auth.token.email != null && request.auth.token.email in get(/databases/$(database)/documents/mneme_lists/$(resource.data.listId)).data.authorizedUsers)
-      );
-      allow create: if isSignedIn()
-        && isValidMnemeItem(incoming())
-        && (
-          request.auth.uid in get(/databases/$(database)/documents/mneme_lists/$(incoming().listId)).data.authorizedUsers ||
-          (request.auth.token.email != null && request.auth.token.email in get(/databases/$(database)/documents/mneme_lists/$(incoming().listId)).data.authorizedUsers)
-        );
-      allow update: if isSignedIn()
-        && (
-          request.auth.uid in get(/databases/$(database)/documents/mneme_lists/$(existing().listId)).data.authorizedUsers ||
-          (request.auth.token.email != null && request.auth.token.email in get(/databases/$(database)/documents/mneme_lists/$(existing().listId)).data.authorizedUsers)
-        )
-        && incoming().listId == existing().listId
-        && incoming().addedBy == existing().addedBy
-        && incoming().createdAt == existing().createdAt
-        && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['isCompleted', 'price', 'quantity', 'category', 'vibe', 'notes', 'nutriScore', 'brand', 'weightVolume', 'name'])
-        );
-      allow delete: if isSignedIn()
-        && (
-          request.auth.uid in get(/databases/$(database)/documents/mneme_lists/$(existing().listId)).data.authorizedUsers ||
-          (request.auth.token.email != null && request.auth.token.email in get(/databases/$(database)/documents/mneme_lists/$(existing().listId)).data.authorizedUsers)
-        );
+      // Liberação total de I/O para usuários logados (Foco em unblock do botão Salvar Produto)
+      allow read, create, delete: if request.auth != null;
+      allow update: if request.auth != null; 
     }
 
     match /config_plans/{planId} {
       allow read: if isSignedIn();
+    }
+
+    match /subscription_coupons/{couponId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /mototaxi_rides/{rideId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
   }
 }

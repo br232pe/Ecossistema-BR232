@@ -2,7 +2,7 @@
   "entities": {
     "User": {
       "title": "User Profile",
-      "description": "Base user profile representing a member of the ECOBR232 loop.",
+      "description": "Base user profile representing a user of the ECOBR232 loop.",
       "type": "object",
       "properties": {
         "uid": { "type": "string", "description": "Firebase Auth UID" },
@@ -32,10 +32,13 @@
             "totalKm": { "type": "number" }
           }
         },
+        "role": { "type": "string", "enum": ["user", "operator", "admin", "partner_finance", "partner_marketing", "promoter_trunk", "promoter_branch"], "description": "Canonical role of the user inside the ecosystem" },
+        "referredBy": { "type": "string", "description": "UID of the converting promoter_branch" },
+        "linkedTrunk": { "type": "string", "description": "UID of the responsible promoter_trunk" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["uid", "email", "identities", "stats", "createdAt", "updatedAt"]
+      "required": ["uid", "email", "identities", "stats", "role", "referredBy", "linkedTrunk", "createdAt", "updatedAt"]
     },
     "Patron": {
       "title": "Patron Business",
@@ -205,6 +208,37 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["listId", "name", "isCompleted", "addedBy"]
+    },
+    "SubscriptionCoupon": {
+      "title": "Subscription Coupon",
+      "description": "Premium/Elite subscription coupon configuration with region-focused semantic naming.",
+      "type": "object",
+      "properties": {
+        "discount": { "type": "number", "description": "Discount fraction from 0.0 to 1.0" },
+        "currentUses": { "type": "number", "description": "Current coupon usage count" },
+        "maxUses": { "type": "number", "description": "Maximum allowed usages in the region" },
+        "isActive": { "type": "boolean", "description": "Whether the coupon is active for calibration" }
+      },
+      "required": ["discount", "currentUses", "maxUses", "isActive"]
+    },
+    "MotoTaxiRide": {
+      "title": "Moto-Taxi Ride",
+      "description": "A ride in the Moto-Taxi service.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "driverId": { "type": "string" },
+        "driverName": { "type": "string" },
+        "status": { "type": "string", "enum": ["requesting", "in_progress", "completed"] },
+        "origin": { "type": "string" },
+        "destination": { "type": "string" },
+        "totalFare": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "isArchived": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "driverId", "driverName", "status", "origin", "destination", "totalFare", "paymentMethod"]
     }
   },
   "firestore": {
@@ -283,6 +317,14 @@
     "mneme_items/{itemId}": {
       "schema": "MnemeItem",
       "description": "Items in smart shopping lists"
+    },
+    "subscription_coupons/{couponId}": {
+      "schema": "SubscriptionCoupon",
+      "description": "Discount coupons for professional elite subscription plans"
+    },
+    "mototaxi_rides/{rideId}": {
+      "schema": "MotoTaxiRide",
+      "description": "Active and finished rides in the Moto-Taxi service"
     }
   }
 }

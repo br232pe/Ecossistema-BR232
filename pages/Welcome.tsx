@@ -27,6 +27,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import SinapseBackground from '../src/components/SinapseBackground';
+import { Footer } from '../src/components/Footer';
 
 const Welcome: React.FC = () => {
   const navigate = useNavigate();
@@ -78,6 +79,7 @@ const Welcome: React.FC = () => {
 
           <div className="flex items-center gap-2 sm:gap-8">
             <nav className="hidden md:flex items-center gap-8 mr-4">
+              <a href="/#/" className="text-[9px] font-black uppercase tracking-widest text-[#00e66b] hover:text-white transition-colors italic">Início</a>
               <button onClick={() => navigate('/mneme')} className="text-[9px] font-black uppercase tracking-widest text-[#ff751f] hover:text-primary transition-colors italic">Cesta</button>
               <button onClick={() => navigate('/guia-servicos')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic">Serviços</button>
               <button onClick={() => navigate('/planos')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic">Planos</button>
@@ -126,6 +128,7 @@ const Welcome: React.FC = () => {
                </button>
                
                <nav className="flex flex-col gap-6 w-full">
+                  <a href="/#/" className="text-xl font-black uppercase tracking-[0.2em] italic text-[#00e66b]">Início</a>
                   <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="text-xl font-black uppercase tracking-[0.2em] italic text-[#ff751f]">Cesta</button>
                   <button onClick={() => { navigate('/guia-servicos'); setIsMenuOpen(false); }} className="text-xl font-black uppercase tracking-[0.2em] italic text-slate-300">Serviços</button>
                   <button onClick={() => { navigate('/planos'); setIsMenuOpen(false); }} className="text-xl font-black uppercase tracking-[0.2em] italic text-slate-300">Planos</button>
@@ -207,7 +210,7 @@ const Welcome: React.FC = () => {
                     onClick={() => navigate('/mneme')}
                     className="h-16 px-10 bg-[#ff751f] hover:bg-[#ff8a3d] text-black rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-3 transition-all active:scale-95 shadow-[0_20px_50px_rgba(255,117,31,0.2)]"
                   >
-                    Acessar Mnēmē <ShoppingCart size={18} />
+                    Acessar Cesta do Lar <ShoppingCart size={18} />
                   </button>
                 </div>
 
@@ -244,7 +247,7 @@ const Welcome: React.FC = () => {
             />
             <ModuleCard 
               icon={<ShoppingCart />} 
-              title="Mnēmē" 
+              title="Cesta do Lar" 
               tag="Gestão"
               desc="Lista de compras inteligente e gestão de suprimentos integrada ao ecossistema regional."
               color="#ff751f"
@@ -332,146 +335,327 @@ const Welcome: React.FC = () => {
               </button>
            </div>
 
-           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-              <div className="p-8 bg-gradient-to-b from-white/5 to-transparent border border-white/10 rounded-[3rem] space-y-8">
-                 <div className="space-y-2">
-                    <h4 className="text-xs font-black uppercase tracking-[0.3em] text-primary italic">Sua Cidade, Seu Radar</h4>
-                    <p className="text-sm font-medium italic text-slate-400">Oportunidades lindeiras filtradas pela sua intenção.</p>
-                 </div>
-                 
-                 <div className="space-y-4">
-                    <div className="p-4 bg-black/40 border border-white/5 rounded-2xl flex items-center gap-4">
-                       <MapPin size={20} className="text-[#ff4d4d]" />
-                       <div>
-                          <p className="text-[10px] font-black uppercase text-slate-500">Localização</p>
-                          <p className="text-xs font-bold italic">Gravatá (Km 84)</p>
-                       </div>
-                    </div>
-                    <div className="p-4 bg-black/40 border border-white/5 rounded-2xl flex items-center gap-4">
-                       <Zap size={20} className="text-primary" />
-                       <div>
-                          <p className="text-[10px] font-black uppercase text-slate-500">Vibe Ativa</p>
-                          <p className="text-xs font-bold italic">Cotidiano / Família</p>
-                       </div>
-                    </div>
-                 </div>
-                 
-                 <button 
-                    onClick={() => navigate('/classificados')}
-                    className="w-full py-4 bg-white/5 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-black transition-all"
-                 >
-                    Customizar Radar
-                 </button>
-              </div>
+            {/* Desktop-Only View (lg and above) */}
+            <div className="hidden lg:grid lg:grid-cols-4 gap-8">
+               {/* Left Column (Sua Cidade, Seu Radar) */}
+               <div className="p-8 bg-gradient-to-b from-white/5 to-transparent border border-white/10 rounded-[3rem] flex flex-col justify-between h-[520px]">
+                  <div className="space-y-4">
+                     <h3 className="text-2xl font-black italic uppercase leading-[0.95] tracking-tighter text-[#00e66b] font-sans">
+                        SUA CIDADE,<br/>SEU RADAR
+                     </h3>
+                     <p className="text-[11px] font-medium italic text-slate-400 leading-normal max-w-[200px]">
+                        Oportunidades lindeiras filtradas pela sua intenção.
+                     </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                     <div className="p-4 bg-black/40 border border-[#00e66b]/15 rounded-2xl flex items-center gap-4">
+                        <MapPin size={20} className="text-[#ff4d4d]" />
+                        <div>
+                           <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Localização</p>
+                           <p className="text-xs font-bold italic">Gravatá (Km 84)</p>
+                        </div>
+                     </div>
+                     <div className="p-4 bg-black/40 border border-[#00e66b]/15 rounded-2xl flex items-center gap-4">
+                        <Zap size={20} className="text-[#00e66b]" />
+                        <div>
+                           <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Vibe Ativa</p>
+                           <p className="text-xs font-bold italic">Cotidiano / Família</p>
+                        </div>
+                     </div>
+                  </div>
+                  
+                  <button 
+                     onClick={() => navigate('/classificados')}
+                     className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-[#00e66b] hover:text-black transition-all font-sans"
+                  >
+                     Customizar Radar
+                  </button>
+               </div>
 
-              {/* O Carrossel de Destaques Magnéticos */}
-              <div className="lg:col-span-3 min-h-[400px] relative group/carousel">
-                 {/* Floating Left Button */}
-                 <button 
-                    onClick={() => scroll('left')}
-                    className="absolute left-2 sm:-left-6 top-1/2 -translate-y-1/2 z-20 size-12 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-primary hover:bg-primary hover:text-black transition-all shadow-xl active:scale-90 opacity-90 sm:opacity-0 group-hover/carousel:opacity-100 focus:opacity-100 lg:hidden"
-                    aria-label="Anterior"
-                 >
-                    <ChevronLeft size={24} />
-                 </button>
+               {/* Right Column (The pristine desktop cards without overlap) */}
+               <div className="lg:col-span-3">
+                  <div className="grid grid-cols-2 xl:grid-cols-4 gap-6">
+                     {[
+                       { 
+                         title: "Reserva das Palmeiras", 
+                         price: "R$ 450.000", 
+                         loc: "Gravatá (Km 84)", 
+                         img: "https://images.unsplash.com/photo-1549492423-400259a2e574?auto=format&fit=crop&q=80&w=600",
+                         tag: "IMÓVEL",
+                         vibe: "Premium",
+                         isPatrono: true,
+                         km: "KM 84"
+                       },
+                       { 
+                         title: "Especialista Diesel", 
+                         price: "Orçamento Local", 
+                         loc: "Caruaru (Km 135)", 
+                         img: "https://images.unsplash.com/photo-1517524206127-48bbd363f3d7?auto=format&fit=crop&q=80&w=600",
+                         tag: "SERVIÇO",
+                         vibe: "Urgente",
+                         isPatrono: true,
+                         km: "KM 135"
+                       },
+                       { 
+                         title: "S10 High Country", 
+                         price: "R$ 210.000", 
+                         loc: "Bezerros (Km 107)", 
+                         img: "https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&q=80&w=600",
+                         tag: "VEÍCULOS",
+                         vibe: "Premium",
+                         isPatrono: true,
+                         km: "KM 107"
+                       },
+                       { 
+                         title: "Alteza Stilettos", 
+                         price: "A partir de R$ 380", 
+                         loc: "Pesqueira (Km 215)", 
+                         img: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=600",
+                         tag: "MODA",
+                         vibe: "Premium",
+                         isPatrono: true,
+                         km: "KM 215"
+                       }
+                     ].map((ad, i) => {
+                        const renderPrice = (price: string) => {
+                           if (price === "Orçamento Local") {
+                              return (
+                                 <div className="flex flex-col leading-none text-left">
+                                    <span className="text-[10px] uppercase font-black text-[#00e66b] tracking-wider">Orçamento</span>
+                                    <span className="text-xl font-black italic text-[#00e66b] uppercase mt-0.5">Local</span>
+                                 </div>
+                              );
+                           }
+                           if (price.startsWith("A partir de")) {
+                              const cleanPrice = price.replace("A partir de", "").trim();
+                              return (
+                                 <div className="flex flex-col leading-none text-left">
+                                    <span className="text-[10px] uppercase font-black text-[#00e66b] tracking-wider">A partir</span>
+                                    <span className="text-xl font-black italic text-[#00e66b] uppercase mt-0.5">de {cleanPrice}</span>
+                                 </div>
+                              );
+                           }
+                           if (price.startsWith("R$")) {
+                              const value = price.replace("R$", "").trim();
+                              return (
+                                 <div className="flex flex-col leading-none text-left">
+                                    <span className="text-[10px] uppercase font-black text-[#00e66b] tracking-wider mb-0.5">R$</span>
+                                    <span className="text-xl sm:text-2xl font-black italic text-[#00e66b] leading-none">{value}</span>
+                                 </div>
+                              );
+                           }
+                           return <p className="text-xl font-black italic text-[#00e66b] text-left">{price}</p>;
+                        };
 
-                 <div 
-                    ref={carouselRef}
-                    className="flex lg:grid lg:grid-cols-2 xl:grid-cols-4 gap-6 overflow-x-auto lg:overflow-visible pb-12 lg:pb-0 snap-x snap-mandatory no-scrollbar scroll-smooth"
-                 >
-                    {[
-                      { 
-                        title: "Reserva das Palmeiras", 
-                        price: "R$ 450.000", 
-                        loc: "Gravatá (Km 84)", 
-                        img: "https://images.unsplash.com/photo-1549492423-400259a2e574?auto=format&fit=crop&q=80&w=600",
-                        tag: "Imóveis",
-                        vibe: "Premium",
-                        isPatrono: true
-                      },
-                      { 
-                        title: "Especialista Diesel", 
-                        price: "Orçamento Local", 
-                        loc: "Caruaru (Km 135)", 
-                        img: "https://images.unsplash.com/photo-1517524206127-48bbd363f3d7?auto=format&fit=crop&q=80&w=600",
-                        tag: "Serviços",
-                        vibe: "Urgente",
-                        isPatrono: true
-                      },
-                      { 
-                        title: "S10 High Country", 
-                        price: "R$ 210.000", 
-                        loc: "Bezerros (Km 107)", 
-                        img: "https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&q=80&w=600",
-                        tag: "Veículos",
-                        vibe: "Premium",
-                        isPatrono: false
-                      },
-                      { 
-                        title: "Alteza Stilettos", 
-                        price: "A partir de R$ 380", 
-                        loc: "Pesqueira (Km 215)", 
-                        img: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=600",
-                        tag: "Moda",
-                        vibe: "Premium",
-                        isPatrono: true
-                      }
-                    ].map((ad, i) => (
-                       <motion.div 
-                         key={i}
-                         whileHover={{ scale: 0.98, y: -5 }}
-                         onClick={() => navigate('/classificados')}
-                         className="min-w-[280px] sm:min-w-[340px] lg:min-w-0 w-full aspect-[4/5] bg-[#0a1811] rounded-[2.5rem] overflow-hidden border border-white/5 snap-center relative cursor-pointer group shadow-2xl"
-                       >
-                          <img src={ad.img} className="absolute inset-0 w-full h-full object-cover brightness-50 group-hover:brightness-90 transition-all duration-1000 group-hover:scale-110" alt={ad.title} />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                          
-                          <div className="absolute top-6 left-6 flex flex-col gap-2">
-                             <span className="px-3 py-1 bg-primary text-black text-[9px] font-black uppercase tracking-[0.2em] rounded-lg w-fit">
-                                {ad.tag}
-                             </span>
-                             <span className="px-3 py-1 bg-white/10 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-lg w-fit">
-                                Classificação: {ad.vibe}
-                             </span>
-                          </div>
+                        return (
+                           <motion.div 
+                             key={i}
+                             whileHover={{ scale: 0.98, y: -5 }}
+                             onClick={() => navigate('/classificados')}
+                             className="w-full h-[520px] bg-[#0c130e] rounded-[2.5rem] overflow-hidden border border-[#00e66b]/15 relative cursor-pointer group shadow-2xl flex flex-col justify-between p-8"
+                           >
+                              {/* Background Image */}
+                              <img 
+                                src={ad.img} 
+                                className="absolute inset-0 w-full h-full object-cover brightness-[0.35] group-hover:brightness-75 transition-all duration-1000 group-hover:scale-105" 
+                                alt={ad.title} 
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent z-0" />
+                              
+                              {/* Content Overlay */}
+                              <div className="relative z-10 h-full w-full flex flex-col justify-between">
+                                 {/* TOP BADGES ROW */}
+                                 <div className="flex items-center justify-between w-full">
+                                    <span className="px-3 py-1 bg-[#00e66b] text-black text-[9px] font-black uppercase tracking-[0.2em] rounded-lg">
+                                       {ad.tag}
+                                    </span>
+                                    {ad.isPatrono && (
+                                       <div className="px-3 py-1 bg-[#ff751f] text-black text-[8px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1 shadow-[0_4px_12px_rgba(255,117,31,0.2)]">
+                                          <Crown size={12} /> Patrono
+                                       </div>
+                                    )}
+                                 </div>
 
-                          {ad.isPatrono && (
-                             <div className="absolute top-6 right-6">
-                                <div className="px-3 py-1.5 bg-[#ff751f] text-black text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-1.5 shadow-[0_10px_20px_rgba(255,117,31,0.3)]">
-                                   <Crown size={12} /> Patrono
-                                </div>
-                             </div>
-                          )}
-   
-                          <div className="absolute bottom-8 left-8 right-8 space-y-4">
-                             <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 italic uppercase">
-                                   <MapPin size={12} className="text-primary" /> {ad.loc}
-                                </div>
-                                <h4 className="text-2xl font-black italic uppercase leading-none tracking-tighter group-hover:text-primary transition-colors underline-offset-4 group-hover:underline">{ad.title}</h4>
-                             </div>
-                             <div className="flex items-center justify-between">
-                                <p className="text-xl font-black italic text-primary">{ad.price}</p>
-                                <div className="size-10 rounded-xl bg-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
-                                   <ArrowRight size={20} />
-                                </div>
-                             </div>
-                          </div>
-                       </motion.div>
-                    ))}
+                                 {/* BOTTOM CARD INFORMATION */}
+                                 <div className="space-y-4">
+                                    <div className="space-y-2 text-left">
+                                       {/* Translucent Gray Capsule */}
+                                       <div className="px-3 py-1.5 bg-white/10 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-[0.1em] rounded-lg w-fit flex items-center gap-1.5 border border-white/5 shadow-inner">
+                                          <ShieldCheck size={11} className="text-[#00e66b]" />
+                                          <span>CLASSIFICAÇÃO ({ad.km})</span>
+                                       </div>
+                                       
+                                       <p className="text-xs font-black tracking-[0.2em] text-white/90 uppercase italic pl-1">
+                                          {ad.vibe.toUpperCase()}
+                                       </p>
+                                    </div>
+
+                                    {/* Multi-line Uppercase Italic Title */}
+                                    <h4 className="text-xl sm:text-2xl font-black italic uppercase leading-none tracking-tighter text-white group-hover:text-[#00e66b] transition-colors text-left pl-1">
+                                       {ad.title.split(' ').map((word, index) => (
+                                          <span key={index} className="block">{word}</span>
+                                       ))}
+                                    </h4>
+
+                                    {/* Price and Arrow */}
+                                    <div className="flex items-end justify-between pt-2">
+                                       {renderPrice(ad.price)}
+                                       <div className="size-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
+                                          <ArrowRight size={20} />
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                           </motion.div>
+                        );
+                     })}
+                  </div>
+               </div>
+            </div>
+
+            {/* Mobile-Only View (hidden on lg and above) */}
+            <div className="grid grid-cols-1 lg:hidden gap-8">
+               <div className="p-8 bg-gradient-to-b from-white/5 to-transparent border border-white/10 rounded-[3rem] space-y-8">
+                  <div className="space-y-2">
+                     <h4 className="text-xs font-black uppercase tracking-[0.3em] text-primary italic">Sua Cidade, Seu Radar</h4>
+                     <p className="text-sm font-medium italic text-slate-400">Oportunidades lindeiras filtradas pela sua intenção.</p>
+                  </div>
+                  
+                  <div className="space-y-4">
+                     <div className="p-4 bg-black/40 border border-white/5 rounded-2xl flex items-center gap-4">
+                        <MapPin size={20} className="text-[#ff4d4d]" />
+                        <div>
+                           <p className="text-[10px] font-black uppercase text-slate-500">Localização</p>
+                           <p className="text-xs font-bold italic">Gravatá (Km 84)</p>
+                        </div>
+                     </div>
+                     <div className="p-4 bg-black/40 border border-white/5 rounded-2xl flex items-center gap-4">
+                        <Zap size={20} className="text-primary" />
+                        <div>
+                           <p className="text-[10px] font-black uppercase text-slate-500">Vibe Ativa</p>
+                           <p className="text-xs font-bold italic">Cotidiano / Família</p>
+                        </div>
+                     </div>
+                  </div>
+                  
+                  <button 
+                     onClick={() => navigate('/classificados')}
+                     className="w-full py-4 bg-white/5 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-black transition-all"
+                  >
+                     Customizar Radar
+                  </button>
+               </div>
+
+               {/* O Carrossel de Destaques Magnéticos */}
+               <div className="min-h-[400px] relative group/carousel">
+                  {/* Floating Left Button */}
+                  <button 
+                     onClick={() => scroll('left')}
+                     className="absolute left-2 top-1/2 -translate-y-1/2 z-20 size-12 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-primary hover:bg-primary hover:text-black transition-all shadow-xl active:scale-90 opacity-90 transition-opacity"
+                     aria-label="Anterior"
+                  >
+                     <ChevronLeft size={24} />
+                  </button>
+
+                  <div 
+                     ref={carouselRef}
+                     className="flex gap-6 overflow-x-auto pb-12 snap-x snap-mandatory no-scrollbar scroll-smooth"
+                  >
+                     {[
+                       { 
+                         title: "Reserva das Palmeiras", 
+                         price: "R$ 450.000", 
+                         loc: "Gravatá (Km 84)", 
+                         img: "https://images.unsplash.com/photo-1549492423-400259a2e574?auto=format&fit=crop&q=80&w=600",
+                         tag: "Imóveis",
+                         vibe: "Premium",
+                         isPatrono: true
+                       },
+                       { 
+                         title: "Especialista Diesel", 
+                         price: "Orçamento Local", 
+                         loc: "Caruaru (Km 135)", 
+                         img: "https://images.unsplash.com/photo-1517524206127-48bbd363f3d7?auto=format&fit=crop&q=80&w=600",
+                         tag: "Serviços",
+                         vibe: "Urgente",
+                         isPatrono: true
+                       },
+                       { 
+                         title: "S10 High Country", 
+                         price: "R$ 210.000", 
+                         loc: "Bezerros (Km 107)", 
+                         img: "https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&q=80&w=600",
+                         tag: "Veículos",
+                         vibe: "Premium",
+                         isPatrono: false
+                       },
+                       { 
+                         title: "Alteza Stilettos", 
+                         price: "A partir de R$ 380", 
+                         loc: "Pesqueira (Km 215)", 
+                         img: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=600",
+                         tag: "Moda",
+                         vibe: "Premium",
+                         isPatrono: true
+                       }
+                     ].map((ad, i) => (
+                        <motion.div 
+                          key={i}
+                          whileHover={{ scale: 0.98, y: -5 }}
+                          onClick={() => navigate('/classificados')}
+                          className="min-w-[280px] sm:min-w-[340px] w-full aspect-[4/5] bg-[#0a1811] rounded-[2.5rem] overflow-hidden border border-white/5 snap-center relative cursor-pointer group shadow-2xl"
+                        >
+                           <img src={ad.img} className="absolute inset-0 w-full h-full object-cover brightness-50 group-hover:brightness-90 transition-all duration-1000 group-hover:scale-110" alt={ad.title} />
+                           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                           
+                           <div className="absolute top-6 left-6 flex flex-col gap-2">
+                              <span className="px-3 py-1 bg-primary text-black text-[9px] font-black uppercase tracking-[0.2em] rounded-lg w-fit">
+                                 {ad.tag}
+                              </span>
+                              <span className="px-3 py-1 bg-white/10 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-lg w-fit">
+                                 Classificação: {ad.vibe}
+                              </span>
+                           </div>
+
+                           {ad.isPatrono && (
+                              <div className="absolute top-6 right-6">
+                                 <div className="px-3 py-1.5 bg-[#ff751f] text-black text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-1.5 shadow-[0_10px_20px_rgba(255,117,31,0.3)]">
+                                    <Crown size={12} /> Patrono
+                                 </div>
+                              </div>
+                           )}
+    
+                           <div className="absolute bottom-8 left-8 right-8 space-y-4">
+                              <div className="space-y-1">
+                                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 italic uppercase">
+                                    <MapPin size={12} className="text-primary" /> {ad.loc}
+                                 </div>
+                                 <h4 className="text-2xl font-black italic uppercase leading-none tracking-tighter group-hover:text-primary transition-colors underline-offset-4 group-hover:underline">{ad.title}</h4>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                 <p className="text-xl font-black italic text-primary">{ad.price}</p>
+                                 <div className="size-10 rounded-xl bg-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
+                                    <ArrowRight size={20} />
+                                 </div>
+                              </div>
+                           </div>
+                        </motion.div>
+                     ))}
                   </div>
 
                   {/* Floating Right Button */}
                   <button 
                      onClick={() => scroll('right')}
-                     className="absolute right-2 sm:-right-6 top-1/2 -translate-y-1/2 z-20 size-12 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-primary hover:bg-primary hover:text-black transition-all shadow-xl active:scale-90 opacity-90 sm:opacity-0 group-hover/carousel:opacity-100 focus:opacity-100 lg:hidden"
+                     className="absolute right-2 top-1/2 -translate-y-1/2 z-20 size-12 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-primary hover:bg-primary hover:text-black transition-all shadow-xl active:scale-90 opacity-90 transition-opacity"
                      aria-label="Próximo"
                   >
                      <ChevronRight size={24} />
                   </button>
-              </div>
-           </div>
-        </section>
+               </div>
+            </div>
+         </section>
 
         {/* CTA Patronos - Engenharia de Valor */}
         <section className="mb-32 relative group cursor-pointer" onClick={() => navigate('/planos')}>
@@ -668,7 +852,7 @@ const Welcome: React.FC = () => {
                   <p className="text-[10px] text-slate-500 font-medium italic px-6">Traga sua base para o Ecossistema e potencialize o IP dos seus credenciados.</p>
                 </div>
                 <button 
-                  onClick={() => navigate('/registro')}
+                  onClick={() => navigate('/dashboard?sima=true')}
                   className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
                 >
                   Iniciar Registro Único
@@ -714,58 +898,7 @@ const Welcome: React.FC = () => {
         </section>
 
         {/* Footer */}
-        <footer className="pb-16 border-t border-white/5">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 pt-16">
-            <div className="col-span-1 lg:col-span-2 space-y-6">
-               <div className="flex items-center gap-4">
-                  <div className="bg-white/5 p-3 rounded-2xl border border-white/10 flex items-center justify-center">
-                    <img 
-                      src="https://firebasestorage.googleapis.com/v0/b/ecossistema-br232.firebasestorage.app/o/Logo-BR232-5.png?alt=media&token=5992da35-1f53-47bd-b66e-4a4338b450cf" 
-                      className="h-10 w-auto object-contain"
-                      alt="ECOBR232 Logo"
-                      referrerPolicy="no-referrer"
-                    />
-                  </div>
-               </div>
-               <p className="text-sm text-slate-500 font-medium italic max-w-sm">
-                 ECOBR232 - Conectando Pernambuco. A primeira malha geoeconômica dedicada ao desenvolvimento do Eixo Capital-Sertão.
-               </p>
-            </div>
-            
-            <div className="space-y-4">
-              <h5 className="text-[10px] font-black uppercase tracking-widest text-primary">Navegação</h5>
-              <div className="flex flex-col gap-3">
-                 <FooterLink href="/portal" text="Portal Principal" />
-                 <FooterLink href="/dashboard" text="Painel do Usuário" />
-                 <FooterLink href="/patronos" text="Fale com um Patrono" />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h5 className="text-[10px] font-black uppercase tracking-widest text-primary">Institucional</h5>
-              <div className="flex flex-col gap-3">
-                 <FooterLink href="/politica-de-privacidade" text="Privacidade" external />
-                 <FooterLink href="/termos-uso" text="Termos de Uso" external />
-                 <FooterLink href="/central-legal" text="Central Legal" />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-20 pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="size-1.5 rounded-full bg-primary animate-pulse"></div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Operação Nominal</span>
-              </div>
-              <div className="h-4 w-px bg-white/10"></div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-600">© 2026 ECOBR232 - Malha Geoeconômica da BR-232</p>
-            </div>
-            <div className="flex gap-4">
-               <FeatureItem icon={<ShieldCheck size={14} />} text="Build Sucesso" />
-               <FeatureItem icon={<Globe size={14} />} text="Eixo Capital Sertão" />
-            </div>
-          </div>
-        </footer>
+        <Footer />
       </div>
     </div>
   );

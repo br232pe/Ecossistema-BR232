@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -21,48 +21,96 @@ import {
   RefreshCcw,
   Search,
   DollarSign,
-  Barcode
+  Barcode,
+  TrendingUp
 } from 'lucide-react';
 import { mnemeService } from '../src/services/mnemeService';
 import { calendarService } from '../src/services/calendarService';
-import { SafetyGuardOverlay } from '../src/components/SafetyGuard';
 import { BarcodeScannerModal } from '../src/components/BarcodeScannerModal';
 import { MnemeList as MnemeListType, MnemeItem } from '../src/types';
 import { MNEME_CATALOG, CatalogItem, getCategoryIcon } from '../src/constants/mnemeCatalog';
 import { useAuth } from '../src/contexts/AuthContext'; 
 import { db } from '../src/contexts/AuthContext';
 import { doc, getDoc } from 'firebase/firestore';
-
-const SECTIONS = [
-  'Hortifruti',
-  'Padaria',
-  'Açougue/Peixaria',
-  'Laticínios',
-  'Higiene',
-  'Limpeza',
-  'Bebidas',
-  'Mercearia',
-  'Utilidades'
-];
-
-const PRESET_BRANDS = [
-  "Nestlé", "Sadia", "Seara", "Três Corações", "Omo", "Ypê", "Colgate", "Quaker", "Heinz", "Hellmann's", "Dona Benta", "Vitarella", "Santa Clara", "Pilão", "Itambé", "Piracanjuba"
-];
+import { TIER_CATEGORIES } from '../src/constants/Categories';
+import { seedCatalog } from '../src/constants/SeedCatalog';
 
 const PRESET_WEIGHTS = [
   "1 un", "2 un", "3 un", "4 un", "5 un", "6 un", "10 un", "100g", "200g", "250g", "500g", "1kg", "2kg", "5kg", "200ml", "350ml", "500ml", "1L", "1.5L", "2L"
 ];
 
+const normalizePrice = (value: string): number => {
+  if (!value) return 0;
+  const replaced = value.replace(',', '.');
+  const parsed = parseFloat(replaced);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+// Helper robusto para obter timestamp numérico, evitando NaNs oriundos do cache local com serverTimestamp()
+const safeGetTimeLocal = (timestamp: any): number => {
+  if (!timestamp) return Date.now();
+  if (typeof timestamp.toMillis === 'function') {
+    try {
+      return timestamp.toMillis();
+    } catch (e) {}
+  }
+  if (typeof timestamp.toDate === 'function') {
+    try {
+      return timestamp.toDate().getTime();
+    } catch (e) {}
+  }
+  if (timestamp.seconds !== undefined) {
+    return timestamp.seconds * 1000 + (timestamp.nanoseconds ? timestamp.nanoseconds / 1000000 : 0);
+  }
+  if (timestamp instanceof Date) {
+    return timestamp.getTime();
+  }
+  if (typeof timestamp === 'number') {
+    return timestamp;
+  }
+  if (typeof timestamp === 'string') {
+    const parse = Date.parse(timestamp);
+    return isNaN(parse) ? Date.now() : parse;
+  }
+  return Date.now();
+};
+
+const formatHistoryDate = (dateVal: any): string => {
+  if (!dateVal) return '';
+  if (typeof dateVal === 'string') {
+    if (dateVal.includes('/') && dateVal.length <= 10) return dateVal;
+    try {
+      const d = new Date(dateVal);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('pt-BR');
+      }
+    } catch (e) {}
+    return dateVal.substring(0, 10);
+  }
+  if (dateVal.toMillis && typeof dateVal.toMillis === 'function') {
+    return new Date(dateVal.toMillis()).toLocaleDateString('pt-BR');
+  }
+  if (dateVal.seconds) {
+    return new Date(dateVal.seconds * 1000).toLocaleDateString('pt-BR');
+  }
+  if (dateVal instanceof Date) {
+    return dateVal.toLocaleDateString('pt-BR');
+  }
+  return String(dateVal);
+};
+
 const MnemeList: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const listTopRef = React.useRef<HTMLDivElement>(null);
   const { user, accessToken, loginWithGoogle } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const [list, setList] = useState<MnemeListType | null>(null);
   const [items, setItems] = useState<MnemeItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(SECTIONS[0]);
+  const [newItemPrice, setNewItemPrice] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>(TIER_CATEGORIES[0]);
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -71,6 +119,7 @@ const MnemeList: React.FC = () => {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
+  const [showToast, setShowToast] = useState(false);
 
   // Catalog State
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,12 +129,18 @@ const MnemeList: React.FC = () => {
   // Completion State
   const [itemToComplete, setItemToComplete] = useState<MnemeItem | null>(null);
   const [completionPrice, setCompletionPrice] = useState('');
+  const [completionLocation, setCompletionLocation] = useState('');
 
   // Editing State
   const [editingItem, setEditingItem] = useState<MnemeItem | null>(null);
   const [editName, setEditName] = useState('');
   const [editQuantity, setEditQuantity] = useState('');
-  const [editCategory, setEditCategory] = useState(SECTIONS[0]);
+  const [editCategory, setEditCategory] = useState<string>(TIER_CATEGORIES[0]);
+  const [editPrice, setEditPrice] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Quick Add State for Brand & Weight/Qty
   const [selectedBrand, setSelectedBrand] = useState('');
@@ -95,6 +150,7 @@ const MnemeList: React.FC = () => {
   const [selectedWeight, setSelectedWeight] = useState('1 un');
   const [customWeight, setCustomWeight] = useState('');
   const [showCustomWeightInput, setShowCustomWeightInput] = useState(false);
+  const [newItemQuantity, setNewItemQuantity] = useState<string>('1');
 
   // Edit State for Brand & Weight
   const [editBrand, setEditBrand] = useState('');
@@ -123,15 +179,58 @@ const MnemeList: React.FC = () => {
 
     // Carregar Metadados da Lista
     const fetchList = async () => {
-      const docRef = doc(db, 'mneme_lists', id);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const listData = { id: snap.id, ...snap.data() } as MnemeListType;
-        setList(listData);
-        
-        // Auto-join with UID if joined by email
-        if (user && listData.authorizedUsers.includes(user.email || '') && !listData.authorizedUsers.includes(user.uid)) {
-          await mnemeService.addAuthorizedUser(id, user.uid);
+      // 1. Tentar primeiro obter do backup local instantaneamente para evitar tela de loading ou travar no mobile
+      const cachedList = mnemeService.getLocalList(user.uid, id);
+      if (cachedList) {
+        setList(cachedList);
+      }
+
+      if (id.startsWith('temp_') || id.startsWith('local_')) {
+        if (!cachedList) {
+          setList({
+            id,
+            name: 'Cesta do Lar',
+            ownerId: user.uid,
+            authorizedUsers: [user.uid],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        }
+        return;
+      }
+
+      try {
+        const docRef = doc(db, 'mneme_lists', id);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const listData = { id: snap.id, ...snap.data() } as MnemeListType;
+          setList(listData);
+          
+          // Auto-join with UID if joined by email
+          if (user && listData.authorizedUsers.includes(user.email || '') && !listData.authorizedUsers.includes(user.uid)) {
+            await mnemeService.addAuthorizedUser(id, user.uid);
+          }
+        } else if (!cachedList) {
+          setList({
+            id,
+            name: 'Cesta do Lar',
+            ownerId: user.uid,
+            authorizedUsers: [user.uid],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        }
+      } catch (err) {
+        console.warn("Erro sutil ao carregar dados da lista do firestore:", err);
+        if (!cachedList) {
+          setList({
+            id,
+            name: 'Cesta do Lar (Offline)',
+            ownerId: user.uid,
+            authorizedUsers: [user.uid],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
         }
       }
     };
@@ -176,15 +275,15 @@ const MnemeList: React.FC = () => {
 
     const brand = showCustomBrandInput ? customBrand : selectedBrand;
     const finalWeight = showCustomWeightInput ? customWeight : selectedWeight;
+    const priceValue = normalizePrice(newItemPrice);
+    const qtyNum = Math.max(1, Math.floor(parseInt(newItemQuantity, 10) || 1));
+    const nameToSubmit = newItemName.trim();
+    const categoryToSubmit = selectedCategory;
 
-    await mnemeService.addItem(id, user.uid, {
-      name: newItemName,
-      category: selectedCategory,
-      quantity: finalWeight || '1 un',
-      brand: brand || '',
-      weightVolume: finalWeight || ''
-    });
+    // Reset de estado síncrono e imediato (sem aguardar o banco de dados) para melhor UX
     setNewItemName('');
+    setNewItemPrice('');
+    setNewItemQuantity('1');
     setCustomBrand('');
     setSelectedBrand('');
     setShowCustomBrandInput(false);
@@ -193,36 +292,82 @@ const MnemeList: React.FC = () => {
     setShowCustomWeightInput(false);
     setSearchQuery('');
     setShowCatalog(false);
+
+    try {
+      await mnemeService.addItem(id, user.uid, {
+        name: nameToSubmit,
+        category: categoryToSubmit,
+        quantity: qtyNum,
+        brand: brand || '',
+        weightVolume: finalWeight || '1 un',
+        price: priceValue
+      });
+      setShowToast(true);
+      setTimeout(() => {
+        listTopRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+      setTimeout(() => {
+        setShowToast(false);
+      }, 2500);
+    } catch (err) {
+      console.error("Erro ao adicionar produto:", err);
+    }
   };
 
   const addCatalogItem = async (catalogItem: CatalogItem) => {
     if (!id || !user) return;
-    await mnemeService.addItem(id, user.uid, {
-      name: catalogItem.name,
-      category: catalogItem.category,
-      quantity: catalogItem.defaultUnit,
-      vibe: catalogItem.classification
-    });
+
+    // Limpeza síncrona imediata da busca de catálogo
     setSearchQuery('');
     setNewItemName('');
     setShowCatalog(false);
+
+    try {
+      await mnemeService.addItem(id, user.uid, {
+        name: catalogItem.name,
+        category: catalogItem.category,
+        quantity: 1, // units, number
+        weightVolume: catalogItem.defaultUnit || '1 un',
+        vibe: catalogItem.classification
+      });
+      setShowToast(true);
+      setTimeout(() => {
+        listTopRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+      setTimeout(() => {
+        setShowToast(false);
+      }, 2500);
+    } catch (err) {
+      console.error("Erro ao adicionar item do catálogo:", err);
+    }
   };
 
   const handleBarcodeItemAdded = async (item: {
     name: string;
     category: string;
-    quantity: string;
+    quantity: number;
     brand: string;
     weightVolume: string;
   }) => {
     if (!id || !user) return;
-    await mnemeService.addItem(id, user.uid, {
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity || '1 un',
-      brand: item.brand || '',
-      weightVolume: item.weightVolume || ''
-    });
+    try {
+      await mnemeService.addItem(id, user.uid, {
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        brand: item.brand || '',
+        weightVolume: item.weightVolume || '1 un'
+      });
+      setShowToast(true);
+      setTimeout(() => {
+        listTopRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+      setTimeout(() => {
+        setShowToast(false);
+      }, 2500);
+    } catch (err) {
+      console.error("Erro ao adicionar produto via gôndola/barcode:", err);
+    }
   };
 
   const handleToggleItem = async (item: MnemeItem) => {
@@ -232,28 +377,38 @@ const MnemeList: React.FC = () => {
     } else {
       // Se vai completar, abrir modal de preço
       setItemToComplete(item);
-      setCompletionPrice('');
+      setCompletionPrice(item.price !== undefined && item.price > 0 ? String(item.price).replace('.', ',') : '');
+      setCompletionLocation(list?.supermarketName || '');
     }
   };
 
   const confirmCompletion = async () => {
     if (!itemToComplete || !id) return;
-    const price = parseFloat(completionPrice.replace(',', '.'));
+    const finalPrice = normalizePrice(completionPrice);
+    const finalLoc = completionLocation || list?.supermarketName || 'Mercado';
+    
     await mnemeService.updateItem(itemToComplete.id, {
       isCompleted: true,
-      price: isNaN(price) ? 0 : price
-    });
+      price: finalPrice,
+      location: finalLoc
+    } as any);
     setItemToComplete(null);
+    setCompletionLocation('');
   };
 
   const startEditing = (item: MnemeItem) => {
     setEditingItem(item);
     setEditName(item.name);
-    setEditCategory(item.category || SECTIONS[0]);
+    setEditCategory(item.category || TIER_CATEGORIES[0]);
+    setEditPrice(item.price !== undefined && item.price > 0 ? String(item.price).replace('.', ',') : '');
+    setEditLocation(item.location || list?.supermarketName || 'Mercado');
+    setEditQuantity(item.quantity !== undefined ? String(item.quantity) : '1');
+    setSaveError(null);
+    setIsSavingEdit(false);
     
     // Brand Config
     if (item.brand) {
-      if (PRESET_BRANDS.includes(item.brand)) {
+      if (dynamicBrands.includes(item.brand)) {
         setEditBrand(item.brand);
         setShowEditCustomBrand(false);
       } else {
@@ -267,7 +422,7 @@ const MnemeList: React.FC = () => {
     }
 
     // Weight/Quantity Config
-    const w = item.weightVolume || item.quantity || '1 un';
+    const w = item.weightVolume || '1 un';
     if (PRESET_WEIGHTS.includes(w)) {
       setEditWeight(w);
       setShowEditCustomWeight(false);
@@ -279,50 +434,87 @@ const MnemeList: React.FC = () => {
   };
 
   const saveEdit = async () => {
-    if (!editingItem) return;
+    if (!editingItem || isSavingEdit) return;
+    setIsSavingEdit(true);
+    setSaveError(null);
+
     const finalBrand = showEditCustomBrand ? editCustomBrand : editBrand;
     const finalWeight = showEditCustomWeight ? editCustomWeight : editWeight;
+    const priceValue = normalizePrice(editPrice);
+    const finalLoc = editLocation || list?.supermarketName || 'Mercado';
+    const qtyNum = Math.max(1, Math.floor(parseInt(editQuantity, 10) || 1));
 
-    await mnemeService.updateItem(editingItem.id, {
+    const updateObj: any = {
       name: editName,
-      quantity: finalWeight || '1 un',
+      quantity: qtyNum,
       brand: finalBrand || '',
-      weightVolume: finalWeight || '',
-      category: editCategory
-    });
-    setEditingItem(null);
+      weightVolume: finalWeight || '1 un',
+      category: editCategory,
+      price: priceValue,
+      location: finalLoc // <--- GARANTIR QUE ISTO SEJA ENVIADO
+    };
+
+    const itemIdToUpdate = editingItem.id;
+
+    // BLOQUEIO E RAIO-X DE REFERÊNCIAS
+    const targetId = itemIdToUpdate;
+    const targetCollection = 'mneme_items';
+    const payload = updateObj;
+
+    console.warn('--- RAIO-X SALVAMENTO ---');
+    console.warn('ID do Documento Alvo:', targetId);
+    console.warn('Coleção Alvo:', targetCollection);
+    console.warn('Payload a ser enviado:', payload);
+
+    if (!targetId || targetId.startsWith('temp_') || targetId.startsWith('local_')) {
+      setIsSavingEdit(false);
+      setSaveError('ID Inválido ou Perdido (Produto temporário ou offline)');
+      throw new Error('ID Inválido ou Perdido');
+    }
+
+    try {
+      // 1. Gravar com await updateDoc (envolto no updateItem)
+      await mnemeService.updateItem(itemIdToUpdate, updateObj);
+
+      // 2. Correção de Imutabilidade (React 18 mapping)
+      const editedProduct = {
+        ...editingItem,
+        ...updateObj,
+        location: finalLoc
+      };
+      const updatedProducts = items.map(p => p.id === editedProduct.id ? editedProduct : p);
+      setItems(updatedProducts);
+
+      // Reset síncrono e fechamento apenas em caso de sucesso
+      setEditingItem(null);
+      setEditPrice('');
+      setEditLocation('');
+      setEditName('');
+    } catch (err: any) {
+      console.error('Falha FATAL no Firebase. Código:', err.code, 'Mensagem:', err.message);
+      console.error("Erro ao atualizar produto editado no Firestore:", err);
+      setSaveError(err instanceof Error ? err.message : "Erro interno ao salvar as alterações do produto no servidor.");
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   const finalizePurchase = async () => {
     if (!id) return;
     const total = items.reduce((sum, item) => sum + (item.price || 0), 0);
     if (confirm(`Deseja finalizar esta compra e arquivar a lista? Total registrado: R$ ${total.toFixed(2)}`)) {
-      await mnemeService.archiveList(id);
-      // We could also store the totalSpent in the list metadata
-      const listRef = doc(db, 'mneme_lists', id);
-      const { updateDoc: fbUpdateDoc } = await import('firebase/firestore');
-      await fbUpdateDoc(listRef, { totalSpent: total });
+      await mnemeService.archiveList(id, total);
       navigate('/mneme');
     }
   };
 
-  const syncCalendar = async () => {
-    if (!accessToken) {
-      // Se não tem token mas está logado, talvez precise re-autenticar com o scope
-      await loginWithGoogle();
-      return;
-    }
+  const [showGoldPlanToast, setShowGoldPlanToast] = useState(false);
 
-    setIsSyncingCalendar(true);
-    try {
-      const events = await calendarService.fetchUpcomingEvents(accessToken);
-      const trips = calendarService.filterBr232Trips(events);
-      setTravelPlans(trips);
-    } catch (err) {
-      console.error('Erro ao sincronizar calendário:', err);
-    } finally {
-      setIsSyncingCalendar(false);
-    }
+  const syncCalendar = async () => {
+    setShowGoldPlanToast(true);
+    setTimeout(() => {
+      setShowGoldPlanToast(false);
+    }, 4000);
   };
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -334,34 +526,58 @@ const MnemeList: React.FC = () => {
   };
 
   const runAiAnalysis = async () => {
-    if (items.length === 0) return;
-    setIsAiAnalyzing(true);
-    setAiAnalysis(null);
-    
-    try {
-      const response = await fetch('/api/mneme/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          items, 
-          supermarketName: list?.supermarketName,
-          travelPlans
-        })
-      });
-      const data = await response.json();
-      setAiAnalysis(data.analysis);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsAiAnalyzing(false);
-    }
+    setShowGoldPlanToast(true);
+    setTimeout(() => {
+      setShowGoldPlanToast(false);
+    }, 4000);
   };
 
-  const groupedItems = SECTIONS.reduce((acc, section) => {
-    const sectionItems = items.filter(i => i.category === section);
-    if (sectionItems.length > 0) acc[section] = sectionItems;
-    return acc;
-  }, {} as Record<string, MnemeItem[]>);
+  // Marcas Dinâmicas derivadas da fusão do catálogo semente com os itens salvos localmente
+  const dynamicBrands = useMemo(() => {
+    const brandsSet = new Set<string>();
+    
+    // 1. Extração de marcas nativas do seedCatalog
+    if (seedCatalog) {
+      Object.values(seedCatalog).forEach(item => {
+        if (item && item.brand) {
+          brandsSet.add(item.brand);
+        }
+      });
+    }
+    
+    // 2. Extração de marcas personalizadas salvas na lista do sujeito
+    items.forEach(item => {
+      if (item && item.brand) {
+        brandsSet.add(item.brand);
+      }
+    });
+    
+    return Array.from(brandsSet).sort((a, b) => a.localeCompare(b));
+  }, [items]);
+
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      const tA = safeGetTimeLocal(a.createdAt);
+      const tB = safeGetTimeLocal(b.createdAt);
+      return tB - tA;
+    });
+  }, [items]);
+
+  const groupedItems = useMemo(() => {
+    return TIER_CATEGORIES.reduce((acc, section) => {
+      const sectionItems = sortedItems.filter(i => i.category === section);
+      if (sectionItems.length > 0) acc[section] = sectionItems;
+      return acc;
+    }, {} as Record<string, MnemeItem[]>);
+  }, [sortedItems]);
+
+  const volumeTotal = useMemo(() => {
+    return items.length;
+  }, [items]);
+
+  const somaAcumulada = useMemo(() => {
+    return items.reduce((acc, item) => acc + (item.price || 0), 0);
+  }, [items]);
 
   if (!list) return <div className="min-h-screen bg-[#05100a] flex items-center justify-center">Carregando Lista de Compras...</div>;
 
@@ -429,6 +645,22 @@ const MnemeList: React.FC = () => {
             </div>
          </div>
 
+          {/* PAINEL DE RESUMO CONTEXTUAL (SUB-HEADER) */}
+          <div className="max-w-6xl mx-auto mt-6 relative z-20 grid grid-cols-3 gap-2 md:gap-4 p-4 bg-slate-950/50 backdrop-blur border border-white/5 rounded-2xl">
+             <div className="flex flex-col justify-center px-1 md:px-4">
+                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-[#ff751f]">Nome da Cesta</span>
+                <span className="text-xs md:text-base font-bold text-white truncate">{list?.name}</span>
+             </div>
+             <div className="flex flex-col justify-center px-2 md:px-4 border-l border-white/5">
+                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">Volume Total</span>
+                <span className="text-xs md:text-base font-black text-white">{volumeTotal} {volumeTotal === 1 ? 'item' : 'itens'}</span>
+             </div>
+             <div className="flex flex-col justify-center px-2 md:px-4 border-l border-white/5">
+                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-primary">Soma Financeira</span>
+                <span className="text-xs md:text-base font-black text-white">R$ {somaAcumulada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+             </div>
+          </div>
+
          {/* Mobile Menu Overlay */}
          <AnimatePresence>
             {isMenuOpen && (
@@ -445,8 +677,8 @@ const MnemeList: React.FC = () => {
                  
                  <nav className="flex flex-col gap-6 w-full">
                     <button onClick={() => { navigate('/portal'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Portal BR232</button>
-                    <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Central Mnēmē</button>
-                    <button onClick={() => { navigate('/mneme/dashboard'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-[#ff751f]/10 border border-[#ff751f]/20 text-lg font-black uppercase tracking-[0.2em] italic text-[#ff751f]">Dashboard Mnēmē</button>
+                    <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Central Cesta do Lar</button>
+                    <button onClick={() => { navigate('/mneme/dashboard'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-[#ff751f]/10 border border-[#ff751f]/20 text-lg font-black uppercase tracking-[0.2em] italic text-[#ff751f]">Dashboard Cesta do Lar</button>
                     <button onClick={() => { navigate('/guia-servicos'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Guia de Serviços</button>
                     <button onClick={() => { navigate('/dashboard'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-primary/10 border border-primary/20 text-lg font-black uppercase tracking-[0.2em] italic text-primary">Meu Painel</button>
                  </nav>
@@ -531,7 +763,7 @@ const MnemeList: React.FC = () => {
                     onChange={(e) => setSelectedCategory(e.target.value)}
                     className="bg-white/5 border-none text-[10px] font-black uppercase tracking-widest rounded-xl px-3 h-12 min-h-[48px] focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer text-white bg-[#030906] w-32 min-w-32"
                   >
-                    {SECTIONS.map(s => <option key={s} value={s} className="bg-[#05100a] text-white font-bold">{s}</option>)}
+                    {TIER_CATEGORIES.map(s => <option key={s} value={s} className="bg-[#05100a] text-white font-bold">{s}</option>)}
                   </select>
                   <input 
                     type="text" 
@@ -542,7 +774,7 @@ const MnemeList: React.FC = () => {
                   />
                </div>
 
-               <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
                      <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest pl-1">Marca</label>
                      {showCustomBrandInput ? (
@@ -575,7 +807,7 @@ const MnemeList: React.FC = () => {
                          className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white bg-[#030906]"
                        >
                           <option value="" className="bg-[#05100a] text-slate-400">Sem marca / Genérico</option>
-                          {PRESET_BRANDS.map(b => <option key={b} value={b} className="bg-[#05100a] text-white">{b}</option>)}
+                          {dynamicBrands.map(b => <option key={b} value={b} className="bg-[#05100a] text-white">{b}</option>)}
                           <option value="CUSTOM" className="bg-[#05100a] text-primary font-bold">+ Nova...</option>
                        </select>
                      )}
@@ -617,16 +849,194 @@ const MnemeList: React.FC = () => {
                        </select>
                      )}
                   </div>
+
+                  <div className="space-y-1">
+                     <>
+                        <div className="space-y-1">
+                           <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest pl-1">Quantidade</label>
+                           <input 
+                             type="number" 
+                             min="1"
+                             step="1"
+                             value={newItemQuantity}
+                             onChange={(e) => {
+                               const v = e.target.value;
+                               const parsed = parseInt(v, 10);
+                               if (v === '' || (!isNaN(parsed) && parsed > 0)) {
+                                 setNewItemQuantity(v);
+                               }
+                             }}
+                             className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white bg-[#030906] focus:outline-none focus:border-primary font-bold"
+                             required
+                           />
+                        </div>
+                        <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest pl-1">Preço Unitário (R$)</label>
+                     </>
+                     <input 
+                       type="text" 
+                       inputMode="decimal"
+                       placeholder="0,00"
+                       value={newItemPrice}
+                       onChange={(e) => setNewItemPrice(e.target.value)}
+                       className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white bg-[#030906] focus:outline-none focus:border-primary"
+                     />
+                  </div>
                </div>
 
                <button type="submit" className="w-full h-11 rounded-xl bg-primary text-black font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform">
                   <Plus size={16} /> Adicionar na Lista
                </button>
+
+               <AnimatePresence>
+                  {showToast && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                      animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+                      exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                      className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 overflow-hidden"
+                    >
+                       <CheckCircle2 size={12} className="text-emerald-400" />
+                       <span>Produto Adicionado com Sucesso</span>
+                    </motion.div>
+                  )}
+               </AnimatePresence>
             </form>
          </div>
       </div>
 
-      <main className="px-6 mt-12 space-y-8">
+      <main className="px-6 mt-12 space-y-8" ref={listTopRef}>
+
+         {/* List Content Grouped by Section */}
+         <div className="space-y-6">
+            {Object.keys(groupedItems).length === 0 && (
+              <div className="text-center py-20 space-y-4">
+                 <Sparkles size={40} className="mx-auto text-slate-800" />
+                 <p className="text-slate-600 text-sm italic font-medium uppercase tracking-widest">A lista está limpa.</p>
+              </div>
+            )}
+
+            {Object.entries(groupedItems).map(([section, sectionItems]) => (
+              <div key={section} className="space-y-4">
+                 <button 
+                   onClick={() => setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }))}
+                   className="w-full flex items-center justify-between py-2 border-b border-white/5"
+                 >
+                    <div className="flex items-center gap-3">
+                       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 italic">{section}</span>
+                       <span className="text-[9px] px-2 py-0.5 bg-white/5 rounded-full font-bold text-slate-500">{sectionItems.length}</span>
+                    </div>
+                    {expandedSections[section] ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
+                 </button>
+
+                 <AnimatePresence>
+                    {expandedSections[section] && (
+                      <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden space-y-2"
+                      >
+                         {sectionItems.map(item => (
+                           <div 
+                             key={item.id}
+                             className={`rounded-2xl border transition-all flex flex-col overflow-hidden ${item.isCompleted ? 'bg-white/[0.02] border-transparent opacity-50' : 'bg-white/5 border-white/5 hover:border-primary/30'}`}
+                           >
+                              <div className="p-4 flex items-center justify-between group">
+                              <div className="flex items-center gap-4 flex-1">
+                                 <button 
+                                    onClick={() => handleToggleItem(item)}
+                                    className="size-12 min-h-[48px] min-w-[48px] flex items-center justify-center text-slate-400 hover:text-white transition-all active:scale-95 shrink-0"
+                                  >
+                                     <div className={`size-6 rounded-full border-2 flex items-center justify-center transition-all ${item.isCompleted ? 'bg-primary border-primary text-black' : 'border-white/20 hover:border-primary'}`}>
+                                        {item.isCompleted && <CheckCircle2 size={14} strokeWidth={3} />}
+                                     </div>
+                                  </button>
+                                 <div className="space-y-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                       <span className={`text-sm font-bold italic uppercase transition-all ${item.isCompleted ? 'line-through text-slate-600' : 'text-white'}`}>{item.name}</span>
+                                       {item.brand && (
+                                         <span className="text-[9px] font-black text-amber-500 px-2 py-0.5 bg-amber-500/15 rounded uppercase tracking-wider">{item.brand}</span>
+                                       )}
+                                    </div>
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                       <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                          <Tag size={10} className="text-slate-500" />
+                                          <span>{item.quantity ? `${item.quantity}x ` : ''}{item.weightVolume || '1 un'} {item.vibe ? `• ${item.vibe}` : ''}</span>
+                                       </div>
+                                       {item.price !== undefined && Number(item.price) > 0 && (
+                                         <span className="text-[9px] font-black text-primary px-2 py-0.5 bg-primary/10 rounded uppercase tracking-wider">
+                                            R$ {Number(item.price).toFixed(2).replace('.', ',')}
+                                         </span>
+                                       )}
+                                    </div>
+                                 </div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                 {item.price !== undefined && Number(item.price) > 0 && (
+                                   <div className="text-right hidden sm:block">
+                                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Valor Unitário</p>
+                                      <p className="text-xs font-black text-primary">R$ {Number(item.price).toFixed(2).replace('.', ',')}</p>
+                                   </div>
+                                 )}
+                                 <div className="flex items-center gap-1">
+                                    <button 
+                                      onClick={() => startEditing(item)}
+                                      className="size-12 min-h-[48px] min-w-[48px] rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-all flex items-center justify-center"
+                                    >
+                                       <Settings size={16} />
+                                    </button>
+                                     {item.priceHistory && item.priceHistory.length > 0 && (
+                                        <button 
+                                          onClick={() => setExpandedHistory(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                                          className={`size-12 min-h-[48px] min-w-[48px] rounded-xl hover:bg-white/10 transition-all flex items-center justify-center ${expandedHistory[item.id] ? 'text-primary' : 'text-slate-400 hover:text-white'}`}
+                                          title="Histórico de Preços (Price Ledger)"
+                                        >
+                                           <TrendingUp size={16} />
+                                        </button>
+                                     )}
+                                    <button 
+                                      onClick={() => mnemeService.deleteItem(item.id)}
+                                      className="size-12 min-h-[48px] min-w-[48px] rounded-xl hover:bg-red-500/10 hover:text-red-500 text-slate-400 transition-all flex items-center justify-center"
+                                    >
+                                       <Trash2 size={18} />
+                                    </button>
+                                 </div>
+                              </div>
+                           </div>
+
+                           <AnimatePresence>
+                              {expandedHistory[item.id] && item.priceHistory && item.priceHistory.length > 0 && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="border-t border-white/5 bg-[#010302]/80 px-6 py-4 space-y-2 text-xs text-slate-400 font-sans"
+                                >
+                                   <div className="text-[9px] font-black uppercase text-primary tracking-widest mb-1.5 flex items-center gap-1.5">
+                                      <TrendingUp size={12} /> Price Ledger (Histórico de Preços)
+                                   </div>
+                                   <div className="flex flex-wrap gap-x-4 gap-y-2">
+                                      {item.priceHistory.map((hist, hIdx) => (
+                                         <div key={hIdx} className="flex items-center gap-2 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
+                                            <span className="font-mono text-slate-500 font-medium text-[10px]">{formatHistoryDate(hist.date)}</span>
+                                            <span className="font-extrabold text-white text-[11px]">R$ {Number(hist.price).toFixed(2).replace('.', ',')}</span>
+                                            {hist.location && (
+                                               <span className="text-[9px] uppercase tracking-wider font-semibold text-slate-400 truncate max-w-[100px]">{hist.location}</span>
+                                            )}
+                                         </div>
+                                      ))}
+                                   </div>
+                                </motion.div>
+                              )}
+                           </AnimatePresence>
+                        </div>
+                         ))}
+                      </motion.div>
+                    )}
+                 </AnimatePresence>
+              </div>
+            ))}
+         </div>
         
         {/* IA Analysis Trigger */}
         <div className="space-y-6">
@@ -663,16 +1073,16 @@ const MnemeList: React.FC = () => {
                        <BrainCircuit size={20} />
                     </div>
                     <div>
-                       <h4 className="text-sm font-black italic uppercase italic tracking-widest text-primary">Análise Mnēmē</h4>
+                       <h4 className="text-sm font-black italic uppercase italic tracking-widest text-primary">Análise Cesta do Lar</h4>
                        <p className="text-[10px] text-slate-500 font-medium italic">Inteligência Nutricional & Regional</p>
                     </div>
                  </div>
                  <button 
                   onClick={runAiAnalysis}
-                  disabled={isAiAnalyzing || items.length === 0}
-                  className="px-6 py-2 bg-primary text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+
+                  className="px-6 py-2 bg-primary text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
                  >
-                    {isAiAnalyzing ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Analisar Lista'}
+                    Analisar Lista
                  </button>
               </div>
 
@@ -733,116 +1143,33 @@ const MnemeList: React.FC = () => {
                     <span className="text-primary font-black italic">R$ 1.200</span>
                     <div className="px-2 py-0.5 bg-primary/20 text-primary text-[8px] font-black rounded-md">KM 82</div>
                  </div>
-                 <button className="w-full h-10 bg-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest group-hover:bg-primary group-hover:text-black transition-all">Ver Detalhes</button>
-              </motion.div>
-           </div>
-        </div>
-
-        {/* List Content Grouped by Section */}
-        <div className="space-y-6">
-           {Object.keys(groupedItems).length === 0 && (
-             <div className="text-center py-20 space-y-4">
-                <Sparkles size={40} className="mx-auto text-slate-800" />
-                <p className="text-slate-600 text-sm italic font-medium uppercase tracking-widest">A lista está limpa.</p>
-             </div>
-           )}
-
-           {Object.entries(groupedItems).map(([section, sectionItems]) => (
-             <div key={section} className="space-y-4">
-                <button 
-                  onClick={() => setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }))}
-                  className="w-full flex items-center justify-between py-2 border-b border-white/5"
-                >
-                   <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 italic">{section}</span>
-                      <span className="text-[9px] px-2 py-0.5 bg-white/5 rounded-full font-bold text-slate-500">{sectionItems.length}</span>
-                   </div>
-                   {expandedSections[section] ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
-                </button>
-
-                <AnimatePresence>
-                   {expandedSections[section] && (
-                     <motion.div 
-                       initial={{ height: 0, opacity: 0 }}
-                       animate={{ height: 'auto', opacity: 1 }}
-                       exit={{ height: 0, opacity: 0 }}
-                       className="overflow-hidden space-y-2"
-                     >
-                        {sectionItems.map(item => (
-                          <div 
-                            key={item.id}
-                            className={`p-4 rounded-2xl border transition-all flex items-center justify-between group ${item.isCompleted ? 'bg-white/[0.02] border-transparent opacity-50' : 'bg-white/5 border-white/5 hover:border-primary/30'}`}
-                          >
-                             <div className="flex items-center gap-4 flex-1">
-                                <button 
-                                   onClick={() => handleToggleItem(item)}
-                                   className="size-12 min-h-[48px] min-w-[48px] flex items-center justify-center text-slate-400 hover:text-white transition-all active:scale-95 shrink-0"
-                                 >
-                                    <div className={`size-6 rounded-full border-2 flex items-center justify-center transition-all ${item.isCompleted ? 'bg-primary border-primary text-black' : 'border-white/20 hover:border-primary'}`}>
-                                       {item.isCompleted && <CheckCircle2 size={14} strokeWidth={3} />}
-                                    </div>
-                                 </button>
-                                <div className="space-y-0.5">
-                                   <div className="flex items-center gap-2 flex-wrap">
-                                      <span className={`text-sm font-bold italic uppercase transition-all ${item.isCompleted ? 'line-through text-slate-600' : 'text-white'}`}>{item.name}</span>
-                                      {item.brand && (
-                                        <span className="text-[9px] font-black text-amber-500 px-2 py-0.5 bg-amber-500/15 rounded uppercase tracking-wider">{item.brand}</span>
-                                      )}
-                                      {item.price && (
-                                        <span className="text-[10px] font-black text-primary px-2 py-0.5 bg-primary/10 rounded">R$ {item.price.toFixed(2)}</span>
-                                      )}
-                                   </div>
-                                   <div className="flex items-center gap-2">
-                                      <Tag size={10} className="text-slate-500" />
-                                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">
-                                        {item.weightVolume || item.quantity} {item.vibe ? `• ${item.vibe}` : ''}
-                                      </span>
-                                   </div>
-                                </div>
-                             </div>
-                             <div className="flex items-center gap-1">
-                                <button 
-                                  onClick={() => startEditing(item)}
-                                  className="size-12 min-h-[48px] min-w-[48px] rounded-xl hover:bg-white/10 text-slate-700 hover:text-white transition-all flex items-center justify-center"
-                                >
-                                   <Settings size={16} />
-                                </button>
-                                <button 
-                                  onClick={() => mnemeService.deleteItem(item.id)}
-                                  className="size-12 min-h-[48px] min-w-[48px] rounded-xl hover:bg-red-500/10 hover:text-red-500 text-slate-700 transition-all flex items-center justify-center"
-                                >
-                                   <Trash2 size={18} />
-                                </button>
-                             </div>
-                          </div>
-                        ))}
-                     </motion.div>
-                   )}
-                </AnimatePresence>
-             </div>
-           ))}
-        </div>
+                  <button className="w-full h-10 bg-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest group-hover:bg-primary group-hover:text-black transition-all">Ver Detalhes</button>
+               </motion.div>
+            </div>
+         </div>
       </main>
 
-      {/* Diálogo com A Feira / Classificados */}
-      <div className="fixed bottom-24 right-6 sm:bottom-28 z-40 flex flex-col gap-3">
-         <motion.button 
-           whileHover={{ scale: 1.1, x: -5 }}
-           onClick={() => navigate('/guia-servicos')}
-           className="h-14 px-6 bg-[#ff751f] text-black rounded-2xl font-black uppercase text-[9px] tracking-widest flex items-center gap-3 shadow-2xl"
-         >
-            <Tag size={16} /> A Feira
-         </motion.button>
-         <motion.button 
-           whileHover={{ scale: 1.1, x: -5 }}
-           onClick={() => navigate('/classificados')}
-           className="h-14 px-6 bg-primary text-black rounded-2xl font-black uppercase text-[9px] tracking-widest flex items-center gap-3 shadow-2xl"
-         >
-            <Sparkles size={16} /> Classificados
-         </motion.button>
-      </div>
 
-      <SafetyGuardOverlay />
+
+      {/* Toast de Funcionalidade Exclusiva Plano Ouro */}
+      <AnimatePresence>
+         {showGoldPlanToast && (
+            <motion.div 
+              initial={{ opacity: 0, y: 50, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className="fixed bottom-6 left-6 right-6 sm:left-auto sm:right-6 sm:w-80 z-[110] p-4 bg-[#0a1811] border border-amber-500/30 rounded-[1.5rem] shadow-2xl flex items-center gap-3"
+            >
+               <div className="size-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                  <Sparkles size={18} />
+               </div>
+               <div>
+                  <h5 className="text-[10px] font-black uppercase tracking-wider text-amber-500">Plano Ouro</h5>
+                  <p className="text-[11px] font-bold text-slate-300">Funcionalidade exclusiva do Plano Ouro (Em breve).</p>
+               </div>
+            </motion.div>
+         )}
+      </AnimatePresence>
 
       {/* Manual Price Entry Modal */}
       <AnimatePresence>
@@ -882,6 +1209,17 @@ const MnemeList: React.FC = () => {
                        />
                     </div>
 
+                    <div className="space-y-1 text-left">
+                       <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest pl-1">Local da Compra (Supermercado)</label>
+                       <input 
+                         type="text" 
+                         value={completionLocation}
+                         onChange={(e) => setCompletionLocation(e.target.value)}
+                         placeholder={list?.supermarketName || "Nome do estabelecimento..."}
+                         className="w-full h-11 px-4 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-primary"
+                       />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                        <button 
                          onClick={() => setItemToComplete(null)}
@@ -908,7 +1246,7 @@ const MnemeList: React.FC = () => {
            <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
               <motion.div 
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                onClick={() => setEditingItem(null)}
+                onClick={() => !isSavingEdit && setEditingItem(null)}
                 className="absolute inset-0 bg-black/90 backdrop-blur-xl"
               style={{ willChange: "transform, opacity" }}
               />
@@ -941,7 +1279,7 @@ const MnemeList: React.FC = () => {
                                   onChange={(e) => setEditCategory(e.target.value)}
                                   className="w-full h-11 px-3 bg-[#030906] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:border-primary appearance-none cursor-pointer text-white"
                                 >
-                                   {SECTIONS.map(s => <option key={s} value={s} className="bg-[#05100a] text-white font-bold">{s}</option>)}
+                                   {TIER_CATEGORIES.map(s => <option key={s} value={s} className="bg-[#05100a] text-white font-bold">{s}</option>)}
                                 </select>
                              </div>
 
@@ -1015,26 +1353,79 @@ const MnemeList: React.FC = () => {
                                  className="w-full h-11 px-4 bg-[#030906] border border-white/10 rounded-xl text-xs text-white cursor-pointer"
                                >
                                   <option value="" className="bg-[#05100a] text-slate-400">Sem marca / Genérico</option>
-                                  {PRESET_BRANDS.map(b => <option key={b} value={b} className="bg-[#05100a] text-white">{b}</option>)}
+                                  {dynamicBrands.map(b => <option key={b} value={b} className="bg-[#05100a] text-white">{b}</option>)}
                                   <option value="CUSTOM" className="bg-[#05100a] text-primary font-bold">+ Adicionar outra...</option>
                                </select>
                              )}
                           </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                             <div className="space-y-1">
+                                <>
+                                  <div className="col-span-2 space-y-1">
+                                    <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-1">Quantidade</label>
+                                    <input 
+                                      type="number" 
+                                      min="1"
+                                      step="1"
+                                      value={editQuantity}
+                                      onChange={(e) => {
+                                        const v = e.target.value;
+                                        const parsed = parseInt(v, 10);
+                                        if (v === '' || (!isNaN(parsed) && parsed > 0)) {
+                                          setEditQuantity(v);
+                                        }
+                                      }}
+                                      className="w-full h-11 px-3 bg-[#030906] border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-primary font-bold mb-2"
+                                      required
+                                    />
+                                  </div>
+                                  <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-1">Preço Unitário (R$)</label>
+                                </>
+                                <input 
+                                  type="text" 
+                                  inputMode="decimal"
+                                  placeholder="0,00"
+                                  value={editPrice}
+                                  onChange={(e) => setEditPrice(e.target.value)}
+                                  className="w-full h-11 px-3 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-primary"
+                                />
+                             </div>
+
+                             <div className="space-y-1">
+                                <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-1">Local da Compra</label>
+                                <input 
+                                  type="text" 
+                                  placeholder={list?.supermarketName || "Nome do local..."}
+                                  value={editLocation}
+                                  onChange={(e) => setEditLocation(e.target.value)}
+                                  className="w-full h-11 px-3 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-primary"
+                                />
+                             </div>
+                          </div>
                        </div>
                     </div>
+
+                    {saveError && (
+                       <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-xl text-center">
+                          {saveError}
+                       </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-3 pt-4">
                        <button 
                          onClick={() => setEditingItem(null)}
-                         className="h-14 bg-white/5 text-slate-400 rounded-2xl font-black uppercase text-[10px] tracking-widest"
+                         disabled={isSavingEdit}
+                         className="h-14 bg-white/5 text-slate-400 rounded-2xl font-black uppercase text-[10px] tracking-widest disabled:opacity-50"
                        >
                           Voltar
                        </button>
                        <button 
                          onClick={saveEdit}
-                         className="h-14 bg-primary text-black rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl"
+                         disabled={isSavingEdit}
+                         className="h-14 bg-primary text-black rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl flex items-center justify-center gap-1 disabled:opacity-50"
                        >
-                          Salvar
+                          {isSavingEdit ? 'Salvando...' : 'Salvar'}
                        </button>
                     </div>
                  </div>

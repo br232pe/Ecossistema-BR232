@@ -61,10 +61,10 @@ const MyAds: React.FC = () => {
     <div className="min-h-screen bg-[#05100a] text-white pb-32">
        <header className="px-6 py-12 md:py-16 space-y-4 max-w-4xl mx-auto">
           <button 
-            onClick={() => navigate('/perfil')}
+            onClick={() => navigate('/dashboard')}
             className="flex items-center gap-2 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:text-white transition-colors mb-4"
           >
-            <ChevronLeft size={14} /> Voltar ao Perfil
+            <ChevronLeft size={14} /> Voltar ao Painel
           </button>
           <div className="flex items-center justify-between">
              <div className="space-y-1">

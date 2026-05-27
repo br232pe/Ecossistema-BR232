@@ -98,3 +98,29 @@ As pastas da aplicação respeitam de forma estrita as responsabilidades do sist
 Todas as escritas e migrações de dados do Ecossistema BR-232 obedecem a uma verificação em tempo de build:
 *   A integridade é validada utilizando o linter rígido integrado (`tsc --noEmit`).
 *   Toda implementação nova é encapsulada prevenindo efeitos colaterais em documentos vizinhos ou lógicas canônicas anteriores.
+
+---
+
+## 🔑 5. Topologia Canônica de Funções (RBAC & Matriz de Atuação)
+
+Para suportar a segurança e as permissões de acesso, foi mapeada a estrutura de controle baseada em papéis (`EcosystemRole`) e a hierarquia de vinculação direta no banco de dados.
+
+### Matriz de Papéis (EcosystemRole):
+*   `user`: Consumidor final / Condutor. É o nível padrão de entrada no sistema.
+*   `operator`: Motorista / Moto-táxi (SaaS). Desenvolve atividade de transporte tarifado.
+*   `admin`: Administrador Geral do Ecossistema. Possui direitos plenos de leitura e alteração.
+*   `partner_finance`: Parceiro Financeiro. Possui atribuição específica de auditoria e leitura dos livros de caixa.
+*   `partner_marketing`: Parceiro de Marketing. Gerencia as comunicações em nível de Tronco Global.
+*   `promoter_trunk`: Promotor Tronco. Atua na gestão e promoção em nível de microrregião (Rede Local do Tronco).
+*   `promoter_branch`: Promotor Galho. Atua na ponta de atração e vinculação direta com estabelecimentos lindeiros (Ponta de Vinculação).
+
+### Hierarquia de Vinculação e Engenharia de Distribuição Financeira (Split de Pagamento):
+Os usuários no ecossistema possuem dois canais de rastreabilidade para o split de pagamentos do gateway financeiro:
+1.  `referredBy`: Armazena o ID do **Promotor Galho** (`promoter_branch`) que realizou a prospecção técnica e aquisição do portfólio.
+2.  `linkedTrunk`: Armazena o ID do **Promotor Tronco** (`promoter_trunk`) responsável pela coordenação regional e supervisão daquela seção da BR-232.
+
+Esta arquitetura determina que qualquer receita gerada por transação (assinatura de planos, anúncios patrocinados, corridas ou taxas) seja fracionada deterministicamente via API do gateway financeiro entre:
+*   **Parceiro Financeiro** (`partner_finance`) - Fundo de liquidez operacional.
+*   **Parceiro de Marketing** (`partner_marketing`) - Expansão e tração de rede global.
+*   **Promotor Tronco** da região (`promoter_trunk`) - Participação pela governança do território.
+*   **Promotor Galho** responsável pela indicação (`promoter_branch`) - Comissão pela atração direta.

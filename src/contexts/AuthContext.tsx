@@ -5,7 +5,9 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   signOut,
-  User
+  User,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
 } from 'firebase/auth';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -13,14 +15,28 @@ import {
   doc, 
   getDoc, 
   setDoc, 
-  serverTimestamp 
+  serverTimestamp,
+  enableIndexedDbPersistence
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { UserProfile } from '../types';
 
-const app = initializeApp(firebaseConfig);
+const { firestoreDatabaseId, ...sanitizedConfig } = firebaseConfig as any;
+const app = initializeApp(sanitizedConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+if (typeof window !== 'undefined') {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Firebase persistence failed-precondition (multiple tabs).');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Firebase persistence unimplemented in current browser.');
+    } else {
+      console.warn('Firebase persistence error:', err);
+    }
+  });
+}
 
 interface AuthContextType {
   user: User | null;
@@ -28,6 +44,8 @@ interface AuthContextType {
   loading: boolean;
   accessToken: string | null;
   loginWithGoogle: () => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
+  registerWithEmail: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -37,6 +55,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   accessToken: null,
   loginWithGoogle: async () => {},
+  loginWithEmail: async () => {},
+  registerWithEmail: async () => {},
   logout: async () => {},
 });
 
@@ -69,15 +89,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const userSnap = await getDoc(userRef);
             
             if (userSnap.exists()) {
-              resolvedProfile = userSnap.data() as UserProfile;
+              const dbData = userSnap.data();
+              resolvedProfile = {
+                ...dbData,
+                displayName: u.displayName || u.email?.split('@')[0] || 'Motorista Anônimo',
+                photoURL: u.photoURL || '',
+                currentCity: dbData.currentCity || 'Recife'
+              } as UserProfile;
             } else {
-              // Create multimodal base profile
-              const newProfile: Partial<UserProfile> = {
+              // Create multimodal base profile with the keys including role, referredBy, and linkedTrunk
+              const dbProfile = {
                 uid: u.uid,
                 email: u.email || '',
-                displayName: u.displayName || 'Motorista Anônimo',
-                photoURL: u.photoURL || '',
-                currentCity: 'Recife', // Default
                 identities: {
                   isConsumer: true,
                   isPatron: false,
@@ -95,15 +118,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   associationForce: 0,
                   totalKm: 0
                 },
+                role: 'user',
+                referredBy: '',
+                linkedTrunk: '',
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
               };
               
-              await setDoc(userRef, newProfile);
-              resolvedProfile = newProfile as UserProfile;
+              // Validate creation success according to rules
+              await setDoc(userRef, dbProfile);
+              console.log('Documento de perfil criado com sucesso para o UID:', u.uid);
+
+              resolvedProfile = {
+                ...dbProfile,
+                displayName: u.displayName || u.email?.split('@')[0] || 'Motorista Anônimo',
+                photoURL: u.photoURL || '',
+                currentCity: 'Recife'
+              } as UserProfile;
             }
           } catch (profileError) {
             console.error('Erro tolerado ao obter perfil no Firestore (Modo Offline/Instabilidade):', profileError);
+            throw profileError; // Propagate for registration failure handling
           }
         }
         
@@ -128,7 +163,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
     try {
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -141,13 +175,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginWithEmail = async (email: string, password: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error('Email login error:', error);
+      throw error;
+    }
+  };
+
+  const registerWithEmail = async (email: string, password: string) => {
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error('Email registration error:', error);
+      throw error;
+    }
+  };
+
   const logout = async () => {
     await signOut(auth);
     setAccessToken(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, loginWithGoogle, logout, accessToken }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile, 
+      loading, 
+      loginWithGoogle, 
+      loginWithEmail, 
+      registerWithEmail, 
+      logout, 
+      accessToken 
+    }}>
       {children}
     </AuthContext.Provider>
   );

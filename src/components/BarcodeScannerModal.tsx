@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { X, Camera, RefreshCcw, Check, Sparkles, AlertCircle, Barcode, ShoppingCart, Plus, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TIER_CATEGORIES } from '../constants/Categories';
+import { seedCatalog } from '../constants/SeedCatalog';
 
 interface BarcodeScannerModalProps {
   isOpen: boolean;
@@ -9,50 +11,12 @@ interface BarcodeScannerModalProps {
   onItemAdded: (item: {
     name: string;
     category: string;
-    quantity: string;
+    quantity: number;
     brand: string;
     weightVolume: string;
   }) => Promise<void>;
 }
 
-// Canonical Preset Barcodes for Common Supermarket & BR-232 Regional roadside items
-const BARCODE_DICTIONARY: Record<string, { name: string; category: string; brand: string; weight: string }> = {
-  // Common Brazilian Supermarket Essentials
-  "7891000053508": { name: "Nescau Chocolate em Pó", category: "Bebidas", brand: "Nestlé", weight: "400g" },
-  "7891000100103": { name: "Leite Condensado Moça", category: "Laticínios", brand: "Nestlé", weight: "395g" },
-  "7894900011517": { name: "Coca-Cola Original Pet", category: "Bebidas", brand: "Coca-Cola", weight: "2L" },
-  "7894900011753": { name: "Coca-Cola Zero Lata", category: "Bebidas", brand: "Coca-Cola", weight: "350ml" },
-  "7898912424016": { name: "Café Solúvel Pilão", category: "Bebidas", brand: "Pilão", weight: "100g" },
-  "7891024136157": { name: "Sabonete Rexona Fresh", category: "Higiene", brand: "Rexona", weight: "84g" },
-  "7891035002441": { name: "Detergente Líquido Limpol Neutro", category: "Limpeza", brand: "Bombril", weight: "500ml" },
-  "7891000120101": { name: "Leite UHT Integral", category: "Laticínios", brand: "Itambé", weight: "1L" },
-  "7891055314982": { name: "Arroz Tio João Tipo 1", category: "Mercearia", brand: "Tio João", weight: "1kg" },
-  "7891079013014": { name: "Feijão Preto Kicaldo", category: "Mercearia", brand: "Kicaldo", weight: "1kg" },
-  "7896005828514": { name: "Creme de Leite Itambé", category: "Mercearia", brand: "Itambé", weight: "200g" },
-  "7896005801210": { name: "Leite em Pó Integral Itambé Lata", category: "Laticínios", brand: "Itambé", weight: "400g" },
-  "7896005802217": { name: "Leite em Pó Integral Instantâneo Itambé Sachê", category: "Laticínios", brand: "Itambé", weight: "400g" },
-  "7896005802224": { name: "Leite em Pó Integral Instantâneo Itambé Sachê", category: "Laticínios", brand: "Itambé", weight: "800g" },
-  "7896038311121": { name: "Manteiga Extra com Sal", category: "Laticínios", brand: "Santa Clara", weight: "200g" },
-
-  // BR-232 Roadside delicacies / Custom EAN-13s for instant testing
-  "7892320001111": { name: "Queijo Coalho Gravatá (Artesanal)", category: "Laticínios", brand: "Artesanal BR-232", weight: "500g" },
-  "7892320002222": { name: "Bolo de Rolo Tradicional Caruaru", category: "Padaria", brand: "Doce Agreste", weight: "1kg" },
-  "7892320003333": { name: "Mel de Engenho Purificado - Vitória", category: "Mercearia", brand: "Engenho Sanhaçu", weight: "500ml" },
-  "7892320004444": { name: "Salame de Bode Moxotó (Defumado)", category: "Açougue/Peixaria", brand: "Portal Sertão", weight: "250g" },
-  "7892320005555": { name: "Cachaça Sanhaçu Orgânica Freijó", category: "Bebidas", brand: "Sanhaçu", weight: "700ml" }
-};
-
-const SECTIONS = [
-  'Hortifruti',
-  'Padaria',
-  'Açougue/Peixaria',
-  'Laticínios',
-  'Higiene',
-  'Limpeza',
-  'Bebidas',
-  'Mercearia',
-  'Utilidades'
-];
 
 const PRESET_BRANDS = [
   "Nestlé", "Sadia", "Seara", "Três Corações", "Omo", "Ypê", "Colgate", "Quaker", "Heinz", "Hellmann's", "Dona Benta", "Vitarella", "Santa Clara", "Pilão", "Itambé", "Piracanjuba", "Artesanal BR-232", "Doce Agreste", "Sanhaçu"
@@ -64,6 +28,14 @@ const PRESET_WEIGHTS = [
 
 // Synth Audio Beep using Web Audio API for checkout-like feedback
 const playScannerBeep = () => {
+  try {
+    const audio = new Audio('/sound/beep.mp3');
+    audio.play().catch(e => {
+      console.warn("HTML5 audio playback blocked or file missing, falling back to Web Audio synth:", e);
+    });
+  } catch (err) {
+    console.warn("HTML5 Audio instantiation failed:", err);
+  }
   try {
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const osc = audioCtx.createOscillator();
@@ -92,11 +64,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
   
   // Custom Registration Form State for Unrecognized Codes
   const [itemName, setItemName] = useState('');
-  const [itemCategory, setItemCategory] = useState(SECTIONS[0]);
+  const [itemCategory, setItemCategory] = useState<string>(TIER_CATEGORIES[0]);
   const [itemBrand, setItemBrand] = useState('');
   const [itemWeight, setItemWeight] = useState('1 un');
   const [customBrand, setCustomBrand] = useState('');
   const [customWeight, setCustomWeight] = useState('');
+  const [itemQuantity, setItemQuantity] = useState<string>('1');
   const [showCustomBrandInput, setShowCustomBrandInput] = useState(false);
   const [showCustomWeightInput, setShowCustomWeightInput] = useState(false);
   
@@ -132,9 +105,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
     setItemName('');
     setCustomBrand('');
     setCustomWeight('');
+    setItemQuantity('1');
     setShowCustomBrandInput(false);
     setShowCustomWeightInput(false);
-    setItemCategory(SECTIONS[0]);
+    setItemCategory(TIER_CATEGORIES[0]);
     setItemBrand('');
     setItemWeight('1 un');
 
@@ -142,7 +116,15 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
       // Small timeout to guarantee DOM node rendering
       await new Promise(resolve => setTimeout(resolve, 250));
       
-      const scanner = new Html5Qrcode(scannerId);
+      const formatsToSupport = [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.QR_CODE
+      ];
+      const scanner = new Html5Qrcode(scannerId, { verbose: false, formatsToSupport });
       scannerRef.current = scanner;
 
       await scanner.start(
@@ -181,15 +163,33 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
     // Auto-stop scanner feeds so the user is not flooded with camera feedback while editing/saving
     stopScanning();
 
-    // Check pre-saved dictionary
-    let match = BARCODE_DICTIONARY[code];
-    
-    // Check local storage customized registers
-    if (!match) {
+    // Check pre-saved seed catalog first (normalizing leading zero if EAN-13 scanned as 13 digits)
+    let matchCode = code;
+    if (code.length === 13 && !code.startsWith('0')) {
+      matchCode = "0" + code;
+    }
+
+    let match: { name: string; category: string; brand: string; weight: string } | null = null;
+    const seedMatch = seedCatalog[matchCode] || seedCatalog[code];
+
+    if (seedMatch) {
+      // Determine weight if present in the product name
+      const weightMatch = seedMatch.name.match(/\b\d+(?:g|kg|ml|L)\b/i);
+      const weight = weightMatch ? weightMatch[0] : "1 un";
+      match = {
+        name: seedMatch.name,
+        category: seedMatch.category,
+        brand: seedMatch.brand,
+        weight: weight
+      };
+    } else {
+      // Check local storage customized registers
       try {
         const customDb = JSON.parse(localStorage.getItem('mneme_custom_barcodes') || '{}');
         if (customDb[code]) {
           match = customDb[code];
+        } else if (customDb[matchCode]) {
+          match = customDb[matchCode];
         }
       } catch (e) {
         console.error("Failed to fetch custom barcode registry from storage:", e);
@@ -214,7 +214,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
         name: matchedItem.name,
         category: matchedItem.category,
         brand: matchedItem.brand,
-        quantity: matchedItem.weight,
+        quantity: 1, // Matched items default to 1 unit
         weightVolume: matchedItem.weight
       });
 
@@ -236,6 +236,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
 
     const brandName = showCustomBrandInput ? customBrand : itemBrand;
     const finalWeightValue = showCustomWeightInput ? customWeight : itemWeight;
+    const finalQuantity = Math.max(1, Math.floor(parseInt(itemQuantity, 10) || 1));
 
     const newProduct = {
       name: itemName,
@@ -255,7 +256,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
         name: newProduct.name,
         category: newProduct.category,
         brand: newProduct.brand,
-        quantity: newProduct.weight,
+        quantity: finalQuantity,
         weightVolume: newProduct.weight
       });
 
@@ -370,16 +371,16 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
                   </p>
                   <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[9px]">
                     <button 
-                      onClick={() => handleOnCodeScanned("7892320001111")}
+                      onClick={() => handleOnCodeScanned("07896481130045")}
                       className="bg-black/40 border border-white/5 hover:border-emerald-500/40 p-3 min-h-[48px] text-left rounded-lg text-emerald-400 font-bold uppercase truncate flex items-center justify-start"
                     >
-                      🧀 Q. Coalho Gravatá
+                      🌽 Flocão Milho 500g
                     </button>
                     <button 
-                      onClick={() => handleOnCodeScanned("7892320002222")}
+                      onClick={() => handleOnCodeScanned("07896481130373")}
                       className="bg-black/40 border border-white/5 hover:border-emerald-500/40 p-3 min-h-[48px] text-left rounded-lg text-emerald-400 font-bold uppercase truncate flex items-center justify-start"
                     >
-                      🥖 Bolo de Rolo Trad.
+                      🥣 Mingau Corilon 230g
                     </button>
                   </div>
                   <div className="text-[8px] text-center text-slate-600 uppercase font-black tracking-wider pt-1">
@@ -449,7 +450,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
                               onChange={(e) => setItemCategory(e.target.value)}
                               className="w-full h-11 px-3 bg-[#030906] border border-white/10 rounded-xl text-[10px] font-bold text-white uppercase tracking-widest focus:outline-none cursor-pointer"
                             >
-                              {SECTIONS.map(s => <option key={s} value={s} className="bg-[#05100a] text-white">{s}</option>)}
+                              {TIER_CATEGORIES.map(s => <option key={s} value={s} className="bg-[#05100a] text-white">{s}</option>)}
                             </select>
                           </div>
 
@@ -528,6 +529,26 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
                               <option value="CUSTOM" className="bg-[#05100a] text-amber-500 font-bold">+ Adicionar outra...</option>
                             </select>
                           )}
+                        </div>
+
+                        {/* Quantidade */}
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest pl-1">Quantidade</label>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={itemQuantity}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const parsed = parseInt(v, 10);
+                              if (v === '' || (!isNaN(parsed) && parsed > 0)) {
+                                setItemQuantity(v);
+                              }
+                            }}
+                            className="w-full h-11 px-3 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500 font-bold"
+                            required
+                          />
                         </div>
                       </div>
                     </div>

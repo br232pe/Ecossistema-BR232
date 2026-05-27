@@ -182,5 +182,19 @@ export const firebaseService = {
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, path);
     }
+  },
+
+  async updateUserProfile(updates: Partial<UserProfile>) {
+    const path = `users/${auth.currentUser?.uid}`;
+    try {
+      if (!auth.currentUser) throw new Error("Usuário não autenticado");
+      const docRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, path);
+    }
   }
 };

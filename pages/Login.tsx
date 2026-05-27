@@ -1,8 +1,46 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { LogIn, ShieldCheck, Globe, Zap, ArrowRight, MapPin } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  LogIn, 
+  ShieldCheck, 
+  Globe, 
+  Zap, 
+  ArrowRight, 
+  MapPin, 
+  Mail, 
+  Lock, 
+  Loader2, 
+  AlertTriangle 
+} from 'lucide-react';
 import { useAuth } from '../src/contexts/AuthContext';
+
+const translateAuthError = (code: string): string => {
+  switch (code) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return 'E-mail ou senha incorretos.';
+    case 'auth/email-already-in-use':
+      return 'Este e-mail já possui cadastro.';
+    case 'auth/weak-password':
+      return 'A senha fornecida é muito fraca (mínimo de 6 caracteres).';
+    case 'auth/invalid-email':
+      return 'O formato do e-mail é inválido.';
+    case 'auth/popup-closed-by-user':
+      return 'A autenticação por conta Google foi interrompida antes do final.';
+    case 'auth/popup-blocked':
+      return 'O popup de autenticação foi bloqueado pelo seu navegador.';
+    case 'auth/network-request-failed':
+      return 'Erro de conexão na BR-232. Verifique o sinal da sua rede.';
+    case 'auth/too-many-requests':
+      return 'Acesso temporariamente bloqueado devido a múltiplas tentativas. Aguarde um instante.';
+    case 'auth/user-disabled':
+      return 'Esta credencial foi desativada temporariamente.';
+    default:
+      return 'Falha inesperada na autenticação. Tente novamente.';
+  }
+};
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -10,21 +48,29 @@ const Login: React.FC = () => {
   const location = useLocation();
   const isRegistering = location.pathname.includes('registrar');
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleLogin = async () => {
+    if (isLoading) return;
+    setErrorMsg(null);
+    setIsLoading(true);
     try {
       await loginWithGoogle();
-      navigate('/dashboard');
-    } catch (error) {
+      navigate(isRegistering ? '/dashboard?sima=true' : '/dashboard');
+    } catch (error: any) {
       console.error("Login failed", error);
-      // In a real app, show a toast here
+      setErrorMsg(translateAuthError(error?.code || ''));
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      navigate(isRegistering ? '/dashboard?sima=true' : '/dashboard');
     }
-  }, [user, navigate]);
+  }, [user, navigate, isRegistering]);
 
   if (user) return null;
 
@@ -38,10 +84,10 @@ const Login: React.FC = () => {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md relative z-10 space-y-12 text-center"
+        className="w-full max-w-sm relative z-10 space-y-10 text-center"
       >
         {/* Branding */}
-        <div className="flex flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-5">
            <motion.div 
              whileHover={{ rotate: 10 }}
              transition={{ duration: 0.5 }}
@@ -55,55 +101,72 @@ const Login: React.FC = () => {
               />
            </motion.div>
            <div className="space-y-1">
-             <h1 className="text-4xl font-black italic uppercase italic tracking-tighter leading-none">ECOBR232</h1>
+             <h1 className="text-4xl font-black italic uppercase tracking-tighter leading-none">ECOBR232</h1>
              <p className="text-[10px] font-bold text-primary tracking-[0.4em] uppercase">Eixo Capital-Sertão</p>
            </div>
         </div>
 
         {/* Content */}
-        <div className="space-y-4">
-           <h2 className="text-2xl font-black italic uppercase italic tracking-tight">
-             {isRegistering ? 'Crie sua conta na Malha.' : 'Acesse a Rede Geoeconômica.'}
+        <div className="space-y-3 px-4">
+           <h2 className="text-2xl font-black italic uppercase tracking-tight">
+             Acesso Seguro
            </h2>
-           <p className="text-slate-400 text-sm font-medium italic">Sincronize seu perfil para gerenciar anúncios, salvar alertas e acessar o Porta-Luvas Digital.</p>
+           <p className="text-slate-400 text-xs font-medium leading-relaxed italic">
+             Utilize sua conta Google para sincronizar seu perfil na rodovia.
+           </p>
         </div>
 
         <div className="space-y-6">
+          <AnimatePresence mode="wait">
+            {errorMsg && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[11px] font-bold text-red-400 flex items-start gap-2 text-left"
+              >
+                <AlertTriangle size={14} className="shrink-0 mt-0.5 text-red-500" />
+                <span>{errorMsg}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="space-y-4">
             <button 
+              type="button"
               onClick={handleLogin}
-              className="w-full h-14 sm:h-18 bg-white text-black hover:bg-slate-100 rounded-2xl sm:rounded-3xl font-black uppercase text-xs flex items-center justify-center gap-4 transition-all shadow-xl active:scale-95 group"
+              disabled={isLoading}
+              className="w-full h-14 bg-white text-black hover:bg-slate-100 disabled:bg-slate-800 disabled:text-slate-500 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-95 duration-200 shadow-lg shadow-white/5"
             >
-              <img src="https://www.google.com/favicon.ico" className="size-5" alt="Google" />
-              Entrar com Google
+              {isLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin text-black" />
+                  <span>Sincronizando...</span>
+                </>
+              ) : (
+                <>
+                  <img src="https://www.google.com/favicon.ico" className="size-4" alt="Google" />
+                  <span>Entrar com Google</span>
+                </>
+              )}
             </button>
             
             <button 
+              type="button"
               onClick={() => navigate('/')}
-              className="w-full h-14 sm:h-18 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl sm:rounded-3xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 transition-all"
+              disabled={isLoading}
+              className="w-full h-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
             >
-              Voltar ao Portal <ArrowRight size={14} className="text-slate-500" />
+              Voltar ao Portal <ArrowRight size={12} className="text-slate-500" />
             </button>
           </div>
-
-          {!isRegistering && (
-            <div className="pt-4 space-y-4">
-               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 italic">Ainda não criou conta?</p>
-               <button 
-                 onClick={() => navigate('/registrar')}
-                 className="px-8 py-4 bg-primary/10 border border-primary/20 rounded-2xl text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary hover:text-black transition-all"
-               >
-                  Registrar Agora
-               </button>
-            </div>
-          )}
         </div>
 
         {/* Policies / Footer */}
         <p className="text-[9px] font-black uppercase tracking-widest text-slate-600 max-w-[280px] mx-auto leading-relaxed">
            Ao entrar, você aceita nossos <br/>
-           <a href="/termos-uso.html" target="_blank" className="text-primary hover:underline">Termos de Uso</a> e 
-           <a href="/politica-de-privacidade.html" target="_blank" className="text-primary hover:underline ml-1">Privacidade</a>.
+           <a href="#/termos-uso" className="text-primary hover:underline">Termos de Uso</a> e 
+           <a href="#/politica-de-privacidade" className="text-primary hover:underline ml-1">Privacidade</a>.
         </p>
       </motion.div>
 

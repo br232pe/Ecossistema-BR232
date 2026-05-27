@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, 
@@ -20,6 +21,8 @@ import {
 } from 'lucide-react';
 
 const ServicesGuide: React.FC = () => {
+  const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeService, setActiveService] = useState('marketplace');
 
   const services = [
@@ -93,7 +96,54 @@ const ServicesGuide: React.FC = () => {
   const current = services.find(s => s.id === activeService) || services[0];
 
   return (
-    <div className="min-h-screen bg-[#050d09] text-white font-sans flex flex-col md:flex-row shadow-2xl">
+    <div className="min-h-screen bg-[#050d09] text-white font-sans flex flex-col">
+      {/* Header Stat Bar */}
+      <header className="sticky top-0 z-50 bg-[#050d09]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 px-safe">
+        <div className="flex items-center justify-between max-w-6xl mx-auto">
+          <div className="flex items-center gap-4 cursor-pointer select-none active:opacity-80 transition-opacity" onClick={() => navigate('/portal')}>
+            <div className="size-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center p-2 shadow-lg shrink-0">
+                 <img 
+                   src="https://firebasestorage.googleapis.com/v0/b/ecossistema-br232.firebasestorage.app/o/Logo-BR232-8.png?alt=media&token=799984b2-18f5-4440-a1c2-a2f0f38c6d0c" 
+                   className="size-full object-contain"
+                   alt="BR232"
+                   referrerPolicy="no-referrer"
+                 />
+            </div>
+            <div>
+              <h1 className="text-xs font-black uppercase tracking-widest leading-none">Portal BR232</h1>
+              <p className="text-[8px] font-bold text-primary tracking-widest uppercase mt-1">Conectado: Recife</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 sm:gap-3">
+             <nav className="hidden lg:flex items-center gap-6 mr-4">
+                 <button onClick={() => navigate('/')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic px-2 py-1">Início</button>
+                 <button onClick={() => navigate('/mneme')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic px-2 py-1">Cesta</button>
+                 <button onClick={() => navigate('/guia-servicos')} className="text-[9px] font-black uppercase tracking-widest text-[#00e676] hover:text-primary transition-colors italic px-2 py-1 font-black">Serviços</button>
+                 <button onClick={() => navigate('/planos')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic px-2 py-1">Planos</button>
+                 <button onClick={() => navigate('/blog')} className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors italic px-2 py-1">Blog</button>
+             </nav>
+             
+             <div className="hidden sm:flex items-center gap-3">
+                <button 
+                   onClick={() => navigate('/dashboard')}
+                   className="px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary hover:text-black transition-all"
+                >
+                   Meu Painel
+                </button>
+             </div>
+
+             <button 
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="lg:hidden size-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-primary active:scale-95 transition-all"
+             >
+                {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+             </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex-1 flex flex-col md:flex-row shadow-2xl">
       {/* Sidebar Navigation */}
       <aside className="w-full md:w-80 lg:w-96 bg-[#0a1510] border-r border-white/5 p-8 flex flex-col gap-10 shrink-0">
          <div className="space-y-4">
@@ -211,6 +261,41 @@ const ServicesGuide: React.FC = () => {
             </motion.div>
          </AnimatePresence>
       </main>
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+         {isMenuOpen && (
+            <motion.div
+               initial={{ opacity: 0, x: '100%' }}
+               animate={{ opacity: 1, x: 0 }}
+               exit={{ opacity: 0, x: '100%' }}
+               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+               className="fixed inset-0 z-[110] bg-[#05100a] lg:hidden p-8 pt-24 space-y-8 flex flex-col items-center text-center overflow-y-auto"
+            >
+               <button onClick={() => setIsMenuOpen(false)} className="absolute top-8 right-8 size-12 rounded-2xl bg-white/5 flex items-center justify-center text-primary">
+                  <X size={24} />
+               </button>
+
+               <nav className="flex flex-col gap-6 w-full">
+                  <button onClick={() => { navigate('/'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Início</button>
+                  <button onClick={() => { navigate('/portal'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Portal BR232</button>
+                  <button onClick={() => { navigate('/mneme'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-[#ff751f]/10 border border-[#ff751f]/20 text-lg font-black uppercase tracking-[0.2em] italic text-[#ff751f]">Cesta do Lar</button>
+                  <button onClick={() => { navigate('/guia-servicos'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-[#00e676]/10 border border-[#00e676]/20 text-lg font-black uppercase tracking-[0.2em] italic text-[#00e676]">Guia de Serviços</button>
+                  <button onClick={() => { navigate('/planos'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Planos & Patronos</button>
+                  <button onClick={() => { navigate('/blog'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-lg font-black uppercase tracking-[0.2em] italic text-slate-300">Blog da 232</button>
+                  <button onClick={() => { navigate('/dashboard'); setIsMenuOpen(false); }} className="h-16 rounded-2xl bg-primary/10 border border-primary/20 text-lg font-black uppercase tracking-[0.2em] italic text-primary">Meu Painel</button>
+               </nav>
+
+               <div className="w-full h-px bg-white/5" />
+
+               <div className="flex flex-col gap-3 w-full pb-12">
+                  <button onClick={() => { navigate('/alertas'); setIsMenuOpen(false); }} className="h-14 rounded-xl border border-red-500/30 text-[10px] font-black uppercase text-red-500 tracking-widest">Alertas da Rodovia</button>
+                  <button onClick={() => { navigate('/classificados'); setIsMenuOpen(false); }} className="h-14 rounded-xl border border-emerald-500/30 text-[10px] font-black uppercase text-emerald-500 tracking-widest">A Feira Digital</button>
+               </div>
+            </motion.div>
+         )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PlaceAutocomplete from '../src/components/PlaceAutocomplete';
+import { firebaseService } from '../src/services/firebaseService';
+import { SafetyGuardOverlay } from '../src/components/SafetyGuard';
 
 const ReportAlert: React.FC = () => {
   const navigate = useNavigate();
@@ -21,6 +23,32 @@ const ReportAlert: React.FC = () => {
   const [selectedPlace, setSelectedPlace] = useState<any>(null);
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [speedExceeded, setSpeedExceeded] = useState(false);
+  const [currentSpeed, setCurrentSpeed] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const speed = position.coords.speed; // Speed in m/s
+        setCurrentSpeed(speed);
+        if (speed !== null && speed > 4.16) {
+          setSpeedExceeded(true);
+        } else {
+          setSpeedExceeded(false);
+        }
+      },
+      (error) => {
+        console.warn("Erro ao obter velocidade via GPS:", error);
+      },
+      { enableHighAccuracy: true }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, []);
 
   const categories = [
     { id: 'transito', name: 'Trânsito', icon: <Navigation size={20} />, color: 'primary' },
@@ -29,17 +57,39 @@ const ReportAlert: React.FC = () => {
     { id: 'seguranca', name: 'Segurança', icon: <ShieldCheck size={20} />, color: 'blue' },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (speedExceeded) return;
     setLoading(true);
-    // Simulate API call with the real location data
-    console.log("Enviando alerta:", { category, description, selectedPlace });
     
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const lat = selectedPlace?.location
+        ? (typeof selectedPlace.location.lat === 'function' ? selectedPlace.location.lat() : selectedPlace.location.lat)
+        : undefined;
+      const lng = selectedPlace?.location
+        ? (typeof selectedPlace.location.lng === 'function' ? selectedPlace.location.lng() : selectedPlace.location.lng)
+        : undefined;
+
+      const kmRegex = /km\s*(\d+)/i;
+      const match = description.match(kmRegex);
+      const kmVal = match ? parseInt(match[1]) : 0;
+
+      await firebaseService.createAlert({
+        category,
+        description,
+        city: selectedPlace?.name || 'Caruaru',
+        km: kmVal,
+        lat,
+        lng
+      } as any);
+
       setSuccess(true);
       setTimeout(() => navigate('/alertas'), 2000);
-    }, 1500);
+    } catch (error) {
+      console.error("Erro ao reportar ocorrência:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (success) {
@@ -87,16 +137,37 @@ const ReportAlert: React.FC = () => {
            <p className="text-slate-400 text-sm italic">Seja preciso. Sua informação impacta centenas de motoristas em tempo real.</p>
         </div>
 
+        {speedExceeded && (
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            style={{ willChange: "transform, opacity" }}
+            className="p-6 bg-red-950/40 border border-red-500/50 rounded-3xl flex flex-col gap-3 items-center text-center shadow-[0_0_30px_rgba(239,68,68,0.2)]"
+          >
+             <AlertTriangle size={36} className="text-red-500 animate-bounce" />
+             <h3 className="text-sm font-black uppercase tracking-widest text-red-500 leading-none">Safety Guard Ativo</h3>
+             <p className="text-xs font-bold text-slate-300">
+               Operação bloqueada por segurança. Estacione o veículo para reportar ocorrências.
+             </p>
+             {currentSpeed !== null && (
+               <span className="text-[10px] bg-red-500 text-black px-4 py-1.5 rounded-full font-black uppercase tracking-wider">
+                 Velocidade Atual: {Math.round(currentSpeed * 3.6)} km/h
+               </span>
+             )}
+          </motion.div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-10">
            {/* Category Selection */}
            <div className="grid grid-cols-2 gap-4">
               {categories.map(cat => (
-                <label key={cat.id} className="relative group cursor-pointer">
+                <label key={cat.id} className={`relative group cursor-pointer ${speedExceeded ? 'pointer-events-none opacity-45' : ''}`}>
                    <input 
                      type="radio" 
                      name="category" 
                      checked={category === cat.id}
-                     onChange={() => setCategory(cat.id)}
+                     onChange={() => !speedExceeded && setCategory(cat.id)}
+                     disabled={speedExceeded}
                      className="peer sr-only" 
                      required 
                    />
@@ -114,10 +185,12 @@ const ReportAlert: React.FC = () => {
            <div className="space-y-6">
               <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 italic block pl-4">Localização Georeferenciada</label>
-                 <PlaceAutocomplete 
-                   onPlaceSelect={(p) => setSelectedPlace(p)}
-                   placeholder="Buscar ponto na BR-232 ou KM..."
-                 />
+                 <div className={speedExceeded ? 'pointer-events-none opacity-45' : ''}>
+                   <PlaceAutocomplete 
+                     onPlaceSelect={(p) => !speedExceeded && setSelectedPlace(p)}
+                     placeholder="Buscar ponto na BR-232 ou KM..."
+                   />
+                 </div>
                  <p className="text-[9px] font-bold text-slate-600 uppercase pl-4 italic">A tecnologia Google Maps garante a precisão do seu reporte.</p>
               </div>
 
@@ -125,10 +198,11 @@ const ReportAlert: React.FC = () => {
                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 italic block pl-4">Descrição curta</label>
                  <textarea 
                    value={description}
-                   onChange={(e) => setDescription(e.target.value)}
+                   onChange={(e) => !speedExceeded && setDescription(e.target.value)}
+                   disabled={speedExceeded}
                    placeholder="Ex: Animal na pista atravessando pro canteiro central..."
                    required
-                   className="w-full h-32 p-6 bg-white/5 border border-white/10 rounded-[2rem] text-sm font-medium focus:ring-1 focus:ring-primary/40 focus:outline-none transition-all placeholder:text-slate-700 resize-none italic"
+                   className="w-full h-32 p-6 bg-white/5 border border-white/10 rounded-[2rem] text-sm font-medium focus:ring-1 focus:ring-primary/40 focus:outline-none transition-all placeholder:text-slate-700 resize-none italic disabled:opacity-50"
                  />
               </div>
            </div>
@@ -137,11 +211,11 @@ const ReportAlert: React.FC = () => {
            <div className="pt-4">
               <button 
                 type="submit"
-                disabled={loading}
-                className="w-full h-18 bg-primary hover:bg-primary-dark text-black rounded-[1.5rem] font-black uppercase text-xs sm:text-sm flex items-center justify-center gap-4 transition-all shadow-[0_20px_50px_rgba(0,230,118,0.2)] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group"
+                disabled={loading || speedExceeded}
+                className="w-full h-18 bg-primary hover:bg-primary-dark text-black rounded-[1.5rem] font-black uppercase text-xs sm:text-sm flex items-center justify-center gap-4 transition-all shadow-[0_20px_50px_rgba(0,230,118,0.2)] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed group"
               >
-                 {loading ? 'Processando...' : 'Publicar Alerta Agora'} 
-                 {!loading && <Send size={20} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" /> }
+                 {loading ? 'Processando...' : speedExceeded ? 'Operação Bloqueada' : 'Publicar Alerta Agora'} 
+                 {!loading && !speedExceeded && <Send size={20} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" /> }
               </button>
            </div>
         </form>
@@ -152,6 +226,7 @@ const ReportAlert: React.FC = () => {
            <p className="text-[10px] font-medium italic text-slate-500">Reportar informações falsas pode impactar negativamente seu <span className="text-primary font-black uppercase">Índice de Pertencimento</span>.</p>
         </div>
       </main>
+      <SafetyGuardOverlay />
     </div>
   );
 };
